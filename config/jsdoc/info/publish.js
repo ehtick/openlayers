@@ -1,5 +1,3 @@
-/* eslint-disable import/no-commonjs */
-
 /**
  * @fileoverview Generates JSON output based on exportable symbols.
  */
@@ -19,26 +17,19 @@ exports.publish = function (data, opts) {
 
   // get all doclets that have exports
   const classes = {};
-  const docs = data(
-    [
-      {define: {isObject: true}},
-      function () {
-        if (this.kind == 'class') {
-          classes[this.longname] = this;
-          return true;
-        }
-        return (
-          this.meta &&
-          this.meta.path &&
-          !this.longname.startsWith('<anonymous>') &&
-          this.longname !== 'module:ol'
-        );
-      },
-    ],
-    {kind: {'!is': 'file'}},
-    {kind: {'!is': 'event'}},
-    {kind: {'!is': 'module'}}
-  ).get();
+  const docs = data(function () {
+    if (this.kind == 'class') {
+      classes[this.longname] = this;
+      return true;
+    }
+    return (
+      !['file', 'event', 'module'].includes(this.kind) &&
+      this.meta &&
+      this.meta.path &&
+      !this.longname.startsWith('<anonymous>') &&
+      this.longname !== 'module:ol'
+    );
+  }).get();
 
   // get symbols data, filter out those that are members of private classes
   const symbols = [];
@@ -54,13 +45,13 @@ exports.publish = function (data, opts) {
       const constructor = doc.memberof;
       if (
         constructor &&
-        constructor.substr(-1) === '_' &&
+        constructor.endsWith('_') &&
         !constructor.includes('module:')
       ) {
         assert.strictEqual(
           doc.inherited,
           true,
-          'Unexpected export on private class: ' + doc.longname
+          'Unexpected export on private class: ' + doc.longname,
         );
         include = false;
       }
@@ -175,8 +166,8 @@ exports.publish = function (data, opts) {
           base: base,
         },
         null,
-        2
-      )
+        2,
+      ),
     );
   });
 };

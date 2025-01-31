@@ -1,7 +1,7 @@
 import Map from '../src/ol/Map.js';
-import OSM from '../src/ol/source/OSM.js';
-import TileLayer from '../src/ol/layer/Tile.js';
 import View from '../src/ol/View.js';
+import TileLayer from '../src/ol/layer/Tile.js';
+import OSM from '../src/ol/source/OSM.js';
 
 const map = new Map({
   layers: [
@@ -25,5 +25,5 @@ teleportButton.addEventListener(
     const target = map.getTarget() === 'map1' ? 'map2' : 'map1';
     map.setTarget(target);
   },
-  false
+  false,
 );

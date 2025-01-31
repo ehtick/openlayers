@@ -1,9 +1,9 @@
-import VectorLayer from '../../../../src/ol/layer/Vector.js';
-import VectorSource from '../../../../src/ol/source/Vector.js';
-import {Feature, Map, View} from '../../../../src/ol/index.js';
-import {Fill, Icon, Stroke, Style, Text} from '../../../../src/ol/style.js';
 import {LineString, MultiPoint, Point} from '../../../../src/ol/geom.js';
+import {Feature, Map, View} from '../../../../src/ol/index.js';
+import VectorLayer from '../../../../src/ol/layer/Vector.js';
 import {getVectorContext} from '../../../../src/ol/render.js';
+import VectorSource from '../../../../src/ol/source/Vector.js';
+import {Fill, Icon, Stroke, Style, Text} from '../../../../src/ol/style.js';
 
 const coordinates = [
   [50, -200, 0],
@@ -18,7 +18,6 @@ const pointStyle = new Style({
   image: new Icon({
     img: img,
     size: [10, 10],
-    imgSize: [10, 10],
   }),
 });
 const line = new LineString(coordinates);

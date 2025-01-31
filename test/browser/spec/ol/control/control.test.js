@@ -1,5 +1,5 @@
-import Control from '../../../../../src/ol/control/Control.js';
 import Map from '../../../../../src/ol/Map.js';
+import Control from '../../../../../src/ol/control/Control.js';
 
 describe('ol.control.Control', function () {
   let map, control;
@@ -28,6 +28,22 @@ describe('ol.control.Control', function () {
 });
 
 describe('element', function () {
+  it('does not trigger error when it is set to null', function () {
+    const map = new Map({
+      target: document.createElement('div'),
+    });
+    try {
+      const control = new Control({
+        element: null,
+      });
+      expect(control.element).to.be(null);
+      map.addControl(control);
+    } catch {
+      expect().fail();
+    }
+    disposeMap(map);
+  });
+
   it('sets `pointer-events: auto` for default target', function () {
     const control = new Control({
       element: document.createElement('div'),
@@ -60,7 +76,7 @@ describe("ol.control.Control's target", function () {
       const ctrl = new Control({target: 'mycontrol'});
       expect(ctrl.target_.id).to.equal('mycontrol');
       ctrl.dispose();
-      target.parentNode.removeChild(target);
+      target.remove();
     });
     it('accepts element for target', function () {
       const target = document.createElement('div');
@@ -69,7 +85,7 @@ describe("ol.control.Control's target", function () {
       const ctrl = new Control({target: target});
       expect(ctrl.target_.id).to.equal('mycontrol');
       ctrl.dispose();
-      target.parentNode.removeChild(target);
+      target.remove();
     });
     it('ignores non-existing target id', function () {
       const ctrl = new Control({target: 'doesnotexist'});

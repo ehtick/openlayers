@@ -1,7 +1,7 @@
 import Map from '../src/ol/Map.js';
-import OSM from '../src/ol/source/OSM.js';
-import TileLayer from '../src/ol/layer/Tile.js';
 import View from '../src/ol/View.js';
+import TileLayer from '../src/ol/layer/Tile.js';
+import OSM from '../src/ol/source/OSM.js';
 
 const map = new Map({
   layers: [
@@ -17,11 +17,10 @@ const map = new Map({
   }),
 });
 
-$('.ol-zoom-in, .ol-zoom-out').tooltip({
-  placement: 'right',
-  container: '#map',
-});
-$('.ol-rotate-reset, .ol-attribution button[title]').tooltip({
-  placement: 'left',
-  container: '#map',
-});
+document
+  .querySelectorAll('.ol-zoom-in, .ol-zoom-out, .ol-rotate-reset')
+  .forEach(function (el) {
+    new bootstrap.Tooltip(el, {
+      container: '#map',
+    });
+  });

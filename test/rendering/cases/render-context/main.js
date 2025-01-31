@@ -1,11 +1,11 @@
-import CircleStyle from '../../../../src/ol/style/Circle.js';
-import Fill from '../../../../src/ol/style/Fill.js';
 import LineString from '../../../../src/ol/geom/LineString.js';
 import Point from '../../../../src/ol/geom/Point.js';
 import Polygon from '../../../../src/ol/geom/Polygon.js';
+import {toContext} from '../../../../src/ol/render.js';
+import CircleStyle from '../../../../src/ol/style/Circle.js';
+import Fill from '../../../../src/ol/style/Fill.js';
 import Stroke from '../../../../src/ol/style/Stroke.js';
 import Style from '../../../../src/ol/style/Style.js';
-import {toContext} from '../../../../src/ol/render.js';
 
 const canvas = document.getElementById('canvas');
 const vectorContext = toContext(canvas.getContext('2d'), {
@@ -21,7 +21,7 @@ vectorContext.setStyle(
       }),
       radius: 10,
     }),
-  })
+  }),
 );
 vectorContext.drawGeometry(new Point([100, 100]));
 
@@ -32,7 +32,7 @@ vectorContext.setStyle(
       color: 'red',
       width: 14,
     }),
-  })
+  }),
 );
 vectorContext.drawGeometry(
   new LineString([
@@ -41,7 +41,7 @@ vectorContext.drawGeometry(
     [50, 60],
     [70, 40],
     [90, 60],
-  ])
+  ]),
 );
 
 vectorContext.setStyle(
@@ -52,7 +52,7 @@ vectorContext.setStyle(
       color: '#111',
       width: 14,
     }),
-  })
+  }),
 );
 vectorContext.drawGeometry(
   new LineString([
@@ -61,7 +61,7 @@ vectorContext.drawGeometry(
     [50, 140],
     [70, 120],
     [90, 140],
-  ])
+  ]),
 );
 
 vectorContext.setStyle(
@@ -73,7 +73,7 @@ vectorContext.setStyle(
     fill: new Fill({
       color: 'rgba(0,0,255,0.5)',
     }),
-  })
+  }),
 );
 
 vectorContext.drawGeometry(
@@ -92,7 +92,7 @@ vectorContext.drawGeometry(
       [160, 40],
       [140, 40],
     ],
-  ])
+  ]),
 );
 
 vectorContext.setStyle(
@@ -101,7 +101,7 @@ vectorContext.setStyle(
       lineDash: [10, 5],
       lineDashOffset: 5,
     }),
-  })
+  }),
 );
 
 vectorContext.drawGeometry(
@@ -120,7 +120,7 @@ vectorContext.drawGeometry(
       [160, 140],
       [140, 140],
     ],
-  ])
+  ]),
 );
 
 render();

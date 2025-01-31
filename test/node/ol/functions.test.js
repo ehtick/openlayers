@@ -1,5 +1,5 @@
-import expect from '../expect.js';
 import {memoizeOne, toPromise} from '../../../src/ol/functions.js';
+import expect from '../expect.js';
 
 describe('ol/functions.js', function () {
   describe('toPromise()', () => {
@@ -37,7 +37,7 @@ describe('ol/functions.js', function () {
           expect(err).to.be.an(Error);
           expect(err.message).to.be('an error');
           done();
-        }
+        },
       );
     });
 
@@ -53,7 +53,7 @@ describe('ol/functions.js', function () {
           expect(err).to.be.an(Error);
           expect(err.message).to.be('an error');
           done();
-        }
+        },
       );
     });
   });

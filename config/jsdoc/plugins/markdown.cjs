@@ -1,5 +1,3 @@
-/* eslint-disable import/no-commonjs */
-
 /**
  * Modified from JSDoc's plugins/markdown and lib/jsdoc/util/markdown modules
  * (see https://github.com/jsdoc3/jsdoc/), which are licensed under the Apache 2
@@ -10,7 +8,6 @@
  */
 
 const {marked} = require('marked');
-const format = require('util').format;
 
 const tags = [
   'author',
@@ -29,14 +26,11 @@ const hasOwnProp = Object.prototype.hasOwnProperty;
 const markedRenderer = new marked.Renderer();
 
 // Allow prettyprint to work on inline code samples
-markedRenderer.code = function (code, language) {
-  const langClass = language ? ' lang-' + language : '';
+markedRenderer.code = function (code) {
+  const langClass = code.lang ? ' lang-' + code.lang : '';
+  const escapedCode = escapeCode(code.text);
 
-  return format(
-    '<pre class="prettyprint source%s"><code>%s</code></pre>',
-    langClass,
-    escapeCode(code)
-  );
+  return `<pre class="prettyprint source${langClass}"><code>${escapedCode}</code></pre>`;
 };
 
 function escapeCode(source) {
@@ -63,7 +57,11 @@ function parse(source) {
 
   source = escapeUnderscoresAndTildes(source);
 
-  result = marked(source, {renderer: markedRenderer})
+  result = marked(source, {
+    renderer: markedRenderer,
+    headerIds: false,
+    mangle: false,
+  })
     .replace(/\s+$/, '')
     .replace(/&#39;/g, "'");
 
@@ -89,11 +87,10 @@ function process(doclet) {
       return;
     }
 
-    if (
-      typeof doclet[tag] === 'string' &&
-      shouldProcessString(tag, doclet[tag])
-    ) {
-      doclet[tag] = parse(doclet[tag]);
+    if (typeof doclet[tag] === 'string') {
+      if (shouldProcessString(tag, doclet[tag])) {
+        doclet[tag] = parse(doclet[tag]);
+      }
     } else if (Array.isArray(doclet[tag])) {
       doclet[tag].forEach(function (value, index, original) {
         const inner = {};

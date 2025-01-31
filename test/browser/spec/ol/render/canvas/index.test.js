@@ -1,3 +1,4 @@
+import {spy as sinonSpy} from 'sinon';
 import * as render from '../../../../../../src/ol/render/canvas.js';
 
 describe('ol.render.canvas', function () {
@@ -16,7 +17,7 @@ describe('ol.render.canvas', function () {
 
     it('does not trigger redraw and clear measurements for unavailable fonts', function (done) {
       this.timeout(4000);
-      const spy = sinon.spy();
+      const spy = sinonSpy();
       render.checkedFonts.addEventListener('propertychange', spy);
       const interval = setInterval(function () {
         if (
@@ -34,7 +35,7 @@ describe('ol.render.canvas', function () {
     });
 
     it('does not trigger redraw and clear measurements for available fonts', function (done) {
-      const spy = sinon.spy();
+      const spy = sinonSpy();
       render.checkedFonts.addEventListener('propertychange', spy);
       const interval = setInterval(function () {
         if (render.checkedFonts.get('normal\nnormal\nsans-serif') == retries) {
@@ -49,7 +50,7 @@ describe('ol.render.canvas', function () {
     });
 
     it("does not trigger redraw and clear measurements for the 'monospace' font", function (done) {
-      const spy = sinon.spy();
+      const spy = sinonSpy();
       render.checkedFonts.addEventListener('propertychange', spy);
       const interval = setInterval(function () {
         if (render.checkedFonts.get('normal\nnormal\nmonospace') == retries) {
@@ -70,14 +71,14 @@ describe('ol.render.canvas', function () {
         function onPropertyChange(e) {
           render.checkedFonts.removeEventListener(
             'propertychange',
-            onPropertyChange
+            onPropertyChange,
           );
           expect(e.key).to.be('normal\nnormal\nAbel');
           expect(render.textHeights).to.eql({});
 
-          document.head.removeChild(font);
+          font.remove();
           done();
-        }
+        },
       );
       render.registerFont('12px Abel');
     });
@@ -87,10 +88,10 @@ describe('ol.render.canvas', function () {
     it('respects line-height', function () {
       const height = render.measureTextHeight('12px/1.2 sans-serif');
       expect(render.measureTextHeight('12px/2.4 sans-serif')).to.be.greaterThan(
-        height
+        height,
       );
       expect(render.measureTextHeight('12px/0.1 sans-serif')).to.be.lessThan(
-        height
+        height,
       );
     });
   });
@@ -98,8 +99,8 @@ describe('ol.render.canvas', function () {
   describe('rotateAtOffset', function () {
     it('rotates a canvas at an offset point', function () {
       const context = {
-        translate: sinon.spy(),
-        rotate: sinon.spy(),
+        translate: sinonSpy(),
+        rotate: sinonSpy(),
       };
       render.rotateAtOffset(context, Math.PI, 10, 10);
       expect(context.translate.callCount).to.be(2);
@@ -113,10 +114,10 @@ describe('ol.render.canvas', function () {
   describe('drawImageOrLabel', function () {
     it('draws the image with correct parameters', function () {
       const layerContext = {
-        save: sinon.spy(),
-        setTransform: sinon.spy(),
-        drawImage: sinon.spy(),
-        restore: sinon.spy(),
+        save: sinonSpy(),
+        transform: sinonSpy(),
+        drawImage: sinonSpy(),
+        restore: sinonSpy(),
         globalAlpha: 1,
       };
       const transform = [1, 0, 0, 1, 0, 0];
@@ -139,12 +140,12 @@ describe('ol.render.canvas', function () {
         h,
         x,
         y,
-        scale
+        scale,
       );
 
       expect(layerContext.save.callCount).to.be(1);
-      expect(layerContext.setTransform.callCount).to.be(1);
-      expect(layerContext.setTransform.firstCall.args).to.eql(transform);
+      expect(layerContext.transform.callCount).to.be(1);
+      expect(layerContext.transform.firstCall.args).to.eql(transform);
       expect(layerContext.drawImage.callCount).to.be(1);
       expect(layerContext.globalAlpha).to.be(0.5);
       expect(layerContext.restore.callCount).to.be(1);

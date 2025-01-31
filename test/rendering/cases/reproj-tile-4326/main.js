@@ -1,9 +1,9 @@
 import Map from '../../../../src/ol/Map.js';
-import TileLayer from '../../../../src/ol/layer/Tile.js';
 import View from '../../../../src/ol/View.js';
+import TileLayer from '../../../../src/ol/layer/Tile.js';
+import {get, toLonLat} from '../../../../src/ol/proj.js';
 import XYZ from '../../../../src/ol/source/XYZ.js';
 import {createForProjection, createXYZ} from '../../../../src/ol/tilegrid.js';
-import {get, toLonLat} from '../../../../src/ol/proj.js';
 
 const tileGrid = createXYZ();
 const extent = tileGrid.getTileCoordExtent([5, 5, 12]);
@@ -18,7 +18,7 @@ const source = new XYZ({
 
 source.setTileGridForProjection(
   get('EPSG:4326'),
-  createForProjection(get('EPSG:4326'), 7, [64, 64])
+  createForProjection(get('EPSG:4326'), 7, [64, 64]),
 );
 
 new Map({

@@ -1,13 +1,12 @@
-import GeoJSON from '../src/ol/format/GeoJSON.js';
 import Map from '../src/ol/Map.js';
-import VectorSource from '../src/ol/source/Vector.js';
 import View from '../src/ol/View.js';
-import {Fill, Style} from '../src/ol/style.js';
-import {
-  Heatmap as HeatmapLayer,
-  Vector as VectorLayer,
-} from '../src/ol/layer.js';
 import {asArray} from '../src/ol/color.js';
+import GeoJSON from '../src/ol/format/GeoJSON.js';
+import HeatmapLayer from '../src/ol/layer/Heatmap.js';
+import VectorLayer from '../src/ol/layer/Vector.js';
+import VectorSource from '../src/ol/source/Vector.js';
+import Fill from '../src/ol/style/Fill.js';
+import Style from '../src/ol/style/Style.js';
 
 const style = new Style({
   fill: new Fill({
@@ -85,7 +84,7 @@ document.getElementById('export-png').addEventListener('click', function () {
           // Apply the transform to the export map context
           CanvasRenderingContext2D.prototype.setTransform.apply(
             mapContext,
-            matrix
+            matrix,
           );
           const backgroundColor = canvas.parentNode.style.backgroundColor;
           if (backgroundColor) {
@@ -94,7 +93,7 @@ document.getElementById('export-png').addEventListener('click', function () {
           }
           mapContext.drawImage(canvas, 0, 0);
         }
-      }
+      },
     );
     mapContext.globalAlpha = 1;
     mapContext.setTransform(1, 0, 0, 1, 0, 0);

@@ -2,8 +2,8 @@
  * @module ol/Feature
  */
 import BaseObject from './Object.js';
-import EventType from './events/EventType.js';
 import {assert} from './asserts.js';
+import EventType from './events/EventType.js';
 import {listen, unlistenByKey} from './events.js';
 
 /**
@@ -23,7 +23,7 @@ import {listen, unlistenByKey} from './events.js';
  */
 
 /***
- * @template Geometry
+ * @template {import("./geom/Geometry.js").default} [Geometry=import("./geom/Geometry.js").default]
  * @typedef {Object<string, *> & { geometry?: Geometry }} ObjectWithGeometry
  */
 
@@ -49,9 +49,9 @@ import {listen, unlistenByKey} from './events.js';
  *
  * ```js
  *
- * import Feature from 'ol/Feature';
- * import Polygon from 'ol/geom/Polygon';
- * import Point from 'ol/geom/Point';
+ * import Feature from 'ol/Feature.js';
+ * import Polygon from 'ol/geom/Polygon.js';
+ * import Point from 'ol/geom/Point.js';
  *
  * const feature = new Feature({
  *   geometry: new Polygon(polyCoords),
@@ -243,7 +243,7 @@ class Feature extends BaseObject {
         geometry,
         EventType.CHANGE,
         this.handleGeometryChange_,
-        this
+        this,
       );
     }
     this.changed();
@@ -315,21 +315,23 @@ class Feature extends BaseObject {
 export function createStyleFunction(obj) {
   if (typeof obj === 'function') {
     return obj;
-  } else {
-    /**
-     * @type {Array<import("./style/Style.js").default>}
-     */
-    let styles;
-    if (Array.isArray(obj)) {
-      styles = obj;
-    } else {
-      assert(typeof (/** @type {?} */ (obj).getZIndex) === 'function', 41); // Expected an `import("./style/Style.js").Style` or an array of `import("./style/Style.js").Style`
-      const style = /** @type {import("./style/Style.js").default} */ (obj);
-      styles = [style];
-    }
-    return function () {
-      return styles;
-    };
   }
+  /**
+   * @type {Array<import("./style/Style.js").default>}
+   */
+  let styles;
+  if (Array.isArray(obj)) {
+    styles = obj;
+  } else {
+    assert(
+      typeof (/** @type {?} */ (obj).getZIndex) === 'function',
+      'Expected an `ol/style/Style` or an array of `ol/style/Style.js`',
+    );
+    const style = /** @type {import("./style/Style.js").default} */ (obj);
+    styles = [style];
+  }
+  return function () {
+    return styles;
+  };
 }
 export default Feature;

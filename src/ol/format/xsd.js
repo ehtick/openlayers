@@ -1,8 +1,8 @@
 /**
  * @module ol/format/xsd
  */
-import {getAllTextContent, getDocument} from '../xml.js';
 import {padNumber} from '../string.js';
+import {getAllTextContent, getDocument} from '../xml.js';
 
 /**
  * @param {Node} node Node.
@@ -21,9 +21,8 @@ export function readBooleanString(string) {
   const m = /^\s*(true|1)|(false|0)\s*$/.exec(string);
   if (m) {
     return m[1] !== undefined || false;
-  } else {
-    return undefined;
   }
+  return undefined;
 }
 
 /**
@@ -54,9 +53,8 @@ export function readDecimalString(string) {
   const m = /^\s*([+\-]?\d*\.?\d+(?:e[+\-]?\d+)?)\s*$/i.exec(string);
   if (m) {
     return parseFloat(m[1]);
-  } else {
-    return undefined;
   }
+  return undefined;
 }
 
 /**
@@ -76,9 +74,8 @@ export function readNonNegativeIntegerString(string) {
   const m = /^\s*(\d+)\s*$/.exec(string);
   if (m) {
     return parseInt(m[1], 10);
-  } else {
-    return undefined;
   }
+  return undefined;
 }
 
 /**
@@ -145,10 +142,31 @@ export function writeNonNegativeIntegerTextNode(node, nonNegativeInteger) {
   node.appendChild(getDocument().createTextNode(string));
 }
 
+const whiteSpaceStart = /^\s/;
+const whiteSpaceEnd = /\s$/;
+const cdataCharacters = /(\n|\t|\r|<|&| {2})/;
+
 /**
  * @param {Node} node Node to append a TextNode with the string to.
  * @param {string} string String.
  */
 export function writeStringTextNode(node, string) {
-  node.appendChild(getDocument().createTextNode(string));
+  if (
+    typeof string === 'string' &&
+    (whiteSpaceStart.test(string) ||
+      whiteSpaceEnd.test(string) ||
+      cdataCharacters.test(string))
+  ) {
+    string.split(']]>').forEach((part, i, a) => {
+      if (i < a.length - 1) {
+        part += ']]';
+      }
+      if (i > 0) {
+        part = '>' + part;
+      }
+      writeCDATASection(node, part);
+    });
+  } else {
+    node.appendChild(getDocument().createTextNode(string));
+  }
 }

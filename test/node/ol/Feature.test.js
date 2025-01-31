@@ -1,9 +1,9 @@
+import {spy as sinonSpy} from 'sinon';
 import Feature, {createStyleFunction} from '../../../src/ol/Feature.js';
 import Point from '../../../src/ol/geom/Point.js';
+import {isEmpty} from '../../../src/ol/obj.js';
 import Style from '../../../src/ol/style/Style.js';
 import expect from '../expect.js';
-import sinon from 'sinon';
-import {isEmpty} from '../../../src/ol/obj.js';
 
 describe('ol/Feature.js', function () {
   describe('constructor', function () {
@@ -81,6 +81,31 @@ describe('ol/Feature.js', function () {
       const feature = new Feature();
       const properties = feature.getProperties();
       expect(isEmpty(properties)).to.be(true);
+    });
+  });
+
+  describe('getPropertiesInternal()', () => {
+    it('returns the feature properties and geometry', () => {
+      const point = new Point([15, 30]);
+      const feature = new Feature({
+        foo: 'bar',
+        ten: 10,
+        geometry: point,
+      });
+
+      const attributes = feature.getPropertiesInternal();
+
+      const keys = Object.keys(attributes);
+      expect(keys.sort()).to.eql(['foo', 'geometry', 'ten']);
+
+      expect(attributes.foo).to.be('bar');
+      expect(attributes.geometry).to.be(point);
+      expect(attributes.ten).to.be(10);
+    });
+
+    it('is null by default', () => {
+      const feature = new Feature();
+      expect(feature.getPropertiesInternal()).to.be(null);
     });
   });
 
@@ -204,7 +229,7 @@ describe('ol/Feature.js', function () {
       feature.set('altGeometry', point2);
       feature.setGeometryName('altGeometry');
 
-      const spy = sinon.spy();
+      const spy = sinonSpy();
       feature.on('change', spy);
       point2.setCoordinates([0, 2]);
       expect(spy.callCount).to.be(1);
@@ -313,7 +338,7 @@ describe('ol/Feature.js', function () {
 
     it('dispatches a change event', function () {
       const feature = new Feature();
-      const spy = sinon.spy();
+      const spy = sinonSpy();
       feature.on('change', spy);
       feature.setStyle(style);
       expect(spy.callCount).to.be(1);
@@ -399,7 +424,7 @@ describe('ol/Feature.js', function () {
       const feature = new Feature({
         geometry: new Point([0, 0]),
       });
-      const spy = sinon.spy();
+      const spy = sinonSpy();
       feature.on('change', spy);
       feature.setGeometry(null);
       expect(spy.callCount).to.be(1);

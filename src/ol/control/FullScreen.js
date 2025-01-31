@@ -1,18 +1,14 @@
 /**
  * @module ol/control/FullScreen
  */
-import Control from './Control.js';
-import EventType from '../events/EventType.js';
 import MapProperty from '../MapProperty.js';
 import {CLASS_CONTROL, CLASS_UNSELECTABLE, CLASS_UNSUPPORTED} from '../css.js';
-import {listen, unlistenByKey} from '../events.js';
 import {replaceNode} from '../dom.js';
+import EventType from '../events/EventType.js';
+import {listen, unlistenByKey} from '../events.js';
+import Control from './Control.js';
 
-const events = [
-  'fullscreenchange',
-  'webkitfullscreenchange',
-  'MSFullscreenChange',
-];
+const events = ['fullscreenchange', 'webkitfullscreenchange'];
 
 /**
  * @enum {string}
@@ -193,7 +189,7 @@ class FullScreen extends Control {
     this.button_.addEventListener(
       EventType.CLICK,
       this.handleClick_.bind(this),
-      false
+      false,
     );
     this.setClassName_(this.button_, this.isInFullscreen_);
 
@@ -287,13 +283,14 @@ class FullScreen extends Control {
    * the map here.
    * @param {import("../Map.js").default|null} map Map.
    * @api
+   * @override
    */
   setMap(map) {
     const oldMap = this.getMap();
     if (oldMap) {
       oldMap.removeChangeListener(
         MapProperty.TARGET,
-        this.boundHandleMapTargetChange_
+        this.boundHandleMapTargetChange_,
       );
     }
 
@@ -303,7 +300,7 @@ class FullScreen extends Control {
     if (map) {
       map.addChangeListener(
         MapProperty.TARGET,
-        this.boundHandleMapTargetChange_
+        this.boundHandleMapTargetChange_,
       );
     }
   }
@@ -329,7 +326,7 @@ class FullScreen extends Control {
 
       for (let i = 0, ii = events.length; i < ii; ++i) {
         listeners.push(
-          listen(doc, events[i], this.handleFullScreenChange_, this)
+          listen(doc, events[i], this.handleFullScreenChange_, this),
         );
       }
       this.handleFullScreenChange_();

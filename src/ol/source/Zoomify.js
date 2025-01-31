@@ -1,17 +1,17 @@
 /**
  * @module ol/source/Zoomify
  */
-import {DEFAULT_TILE_SIZE} from '../tilegrid/common.js';
 
 import ImageTile from '../ImageTile.js';
-import TileGrid from '../tilegrid/TileGrid.js';
-import TileImage from './TileImage.js';
 import TileState from '../TileState.js';
-import {assert} from '../asserts.js';
 import {createCanvasContext2D} from '../dom.js';
-import {createFromTileUrlFunctions, expandUrl} from '../tileurlfunction.js';
 import {getCenter} from '../extent.js';
 import {toSize} from '../size.js';
+import TileGrid from '../tilegrid/TileGrid.js';
+import {DEFAULT_TILE_SIZE} from '../tilegrid/common.js';
+import {createFromTileUrlFunctions} from '../tileurlfunction.js';
+import {expandUrl} from '../uri.js';
+import TileImage from './TileImage.js';
 
 /**
  * @typedef {'default' | 'truncated'} TierSizeCalculation
@@ -34,7 +34,7 @@ export class CustomTile extends ImageTile {
     src,
     crossOrigin,
     tileLoadFunction,
-    options
+    options,
   ) {
     super(tileCoord, state, src, crossOrigin, tileLoadFunction, options);
 
@@ -45,6 +45,7 @@ export class CustomTile extends ImageTile {
     this.zoomifyImage_ = null;
 
     /**
+     * @private
      * @type {import("../size.js").Size}
      */
     this.tileSize_ = tileSize;
@@ -53,6 +54,7 @@ export class CustomTile extends ImageTile {
   /**
    * Get the image element for this tile.
    * @return {HTMLCanvasElement|HTMLImageElement|HTMLVideoElement} Image.
+   * @override
    */
   getImage() {
     if (this.zoomifyImage_) {
@@ -64,22 +66,20 @@ export class CustomTile extends ImageTile {
       if (image.width == tileSize[0] && image.height == tileSize[1]) {
         this.zoomifyImage_ = image;
         return image;
-      } else {
-        const context = createCanvasContext2D(tileSize[0], tileSize[1]);
-        context.drawImage(image, 0, 0);
-        this.zoomifyImage_ = context.canvas;
-        return context.canvas;
       }
-    } else {
-      return image;
+      const context = createCanvasContext2D(tileSize[0], tileSize[1]);
+      context.drawImage(image, 0, 0);
+      this.zoomifyImage_ = context.canvas;
+      return context.canvas;
     }
+    return image;
   }
 }
 
 /**
  * @typedef {Object} Options
  * @property {import("./Source.js").AttributionLike} [attributions] Attributions.
- * @property {number} [cacheSize] Initial tile cache size. Will auto-grow to hold at least the number of tiles in the viewport.
+ * @property {number} [cacheSize] Deprecated.  Use the cacheSize option on the layer instead.
  * @property {null|string} [crossOrigin] The `crossOrigin` attribute for loaded images.  Note that
  * you must provide a `crossOrigin` value  you want to access pixel data with the Canvas renderer.
  * See https://developer.mozilla.org/en-US/docs/Web/HTML/CORS_enabled_image for more detail.
@@ -167,9 +167,8 @@ class Zoomify extends TileImage {
           height >>= 1;
         }
         break;
-      default: // Unknown `tierSizeCalculation` configured
-        assert(false, 53);
-        break;
+      default:
+        throw new Error('Unknown `tierSizeCalculation` configured');
     }
 
     tierSizeInTiles.push([1, 1]);
@@ -181,7 +180,7 @@ class Zoomify extends TileImage {
       resolutions.push(tilePixelRatio << i);
       tileCountUpToTier.push(
         tierSizeInTiles[i - 1][0] * tierSizeInTiles[i - 1][1] +
-          tileCountUpToTier[i - 1]
+          tileCountUpToTier[i - 1],
       );
     }
     resolutions.reverse();
@@ -215,36 +214,35 @@ class Zoomify extends TileImage {
         function (tileCoord, pixelRatio, projection) {
           if (!tileCoord) {
             return undefined;
-          } else {
-            const tileCoordZ = tileCoord[0];
-            const tileCoordX = tileCoord[1];
-            const tileCoordY = tileCoord[2];
-            const tileIndex =
-              tileCoordX + tileCoordY * tierSizeInTiles[tileCoordZ][0];
-            const tileGroup =
-              ((tileIndex + tileCountUpToTier[tileCoordZ]) / tileWidth) | 0;
-            const localContext = {
-              'z': tileCoordZ,
-              'x': tileCoordX,
-              'y': tileCoordY,
-              'tileIndex': tileIndex,
-              'TileGroup': 'TileGroup' + tileGroup,
-            };
-            return template.replace(/\{(\w+?)\}/g, function (m, p) {
-              return localContext[p];
-            });
           }
+          const tileCoordZ = tileCoord[0];
+          const tileCoordX = tileCoord[1];
+          const tileCoordY = tileCoord[2];
+          const tileIndex =
+            tileCoordX + tileCoordY * tierSizeInTiles[tileCoordZ][0];
+          const tileGroup =
+            ((tileIndex + tileCountUpToTier[tileCoordZ]) / tileWidth) | 0;
+          const localContext = {
+            'z': tileCoordZ,
+            'x': tileCoordX,
+            'y': tileCoordY,
+            'tileIndex': tileIndex,
+            'TileGroup': 'TileGroup' + tileGroup,
+          };
+          return template.replace(/\{(\w+?)\}/g, function (m, p) {
+            return localContext[p];
+          });
         }
       );
     }
 
     const tileUrlFunction = createFromTileUrlFunctions(
-      urls.map(createFromTemplate)
+      urls.map(createFromTemplate),
     );
 
     const ZoomifyTileClass = CustomTile.bind(
       null,
-      toSize(tileSize * tilePixelRatio)
+      toSize(tileSize * tilePixelRatio),
     );
 
     super({
@@ -272,17 +270,14 @@ class Zoomify extends TileImage {
     // tile url calculation.
     const tileUrl = tileGrid.getTileCoordForCoordAndResolution(
       getCenter(tileGrid.getExtent()),
-      resolutions[resolutions.length - 1]
+      resolutions[resolutions.length - 1],
     );
     const testTileUrl = tileUrlFunction(tileUrl, 1, null);
     const image = new Image();
-    image.addEventListener(
-      'error',
-      function () {
-        tileWidth = tileSize;
-        this.changed();
-      }.bind(this)
-    );
+    image.addEventListener('error', () => {
+      tileWidth = tileSize;
+      this.changed();
+    });
     image.src = testTileUrl;
   }
 }

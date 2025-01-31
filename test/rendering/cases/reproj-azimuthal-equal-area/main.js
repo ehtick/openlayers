@@ -1,10 +1,10 @@
-import ImageCanvas from '../../../../src/ol/source/ImageCanvas.js';
-import ImageLayer from '../../../../src/ol/layer/Image.js';
+import proj4 from 'proj4';
 import Map from '../../../../src/ol/Map.js';
 import View from '../../../../src/ol/View.js';
-import proj4 from 'proj4';
-import {get as getProjection, transform} from '../../../../src/ol/proj.js';
+import ImageLayer from '../../../../src/ol/layer/Image.js';
 import {register} from '../../../../src/ol/proj/proj4.js';
+import {get as getProjection, transform} from '../../../../src/ol/proj.js';
+import ImageCanvas from '../../../../src/ol/source/ImageCanvas.js';
 
 const llpos = [-72, 40];
 
@@ -14,7 +14,7 @@ proj4.defs(
     llpos[1] +
     ' +lon_0=' +
     llpos[0] +
-    ' +x_0=0 +y_0=0 +a=6371000 +b=6371000 +units=m'
+    ' +x_0=0 +y_0=0 +a=6371000 +b=6371000 +units=m',
 );
 register(proj4);
 const aeqd = getProjection('az');

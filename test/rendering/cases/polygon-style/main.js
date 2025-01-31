@@ -1,12 +1,12 @@
 import Feature from '../../../../src/ol/Feature.js';
-import Fill from '../../../../src/ol/style/Fill.js';
 import Map from '../../../../src/ol/Map.js';
+import View from '../../../../src/ol/View.js';
 import Polygon from '../../../../src/ol/geom/Polygon.js';
-import Stroke from '../../../../src/ol/style/Stroke.js';
-import Style from '../../../../src/ol/style/Style.js';
 import VectorLayer from '../../../../src/ol/layer/Vector.js';
 import VectorSource from '../../../../src/ol/source/Vector.js';
-import View from '../../../../src/ol/View.js';
+import Fill from '../../../../src/ol/style/Fill.js';
+import Stroke from '../../../../src/ol/style/Stroke.js';
+import Style from '../../../../src/ol/style/Style.js';
 
 const vectorSource = new VectorSource();
 let feature;
@@ -39,7 +39,7 @@ feature.setStyle(
       lineJoin: 'round',
       lineCap: 'butt',
     }),
-  })
+  }),
 );
 vectorSource.addFeature(feature);
 
@@ -80,7 +80,7 @@ feature.setStyle(
       color: '#9696EB',
       width: 3,
     }),
-  })
+  }),
 );
 vectorSource.addFeature(feature);
 
@@ -110,7 +110,7 @@ feature.setStyle(
       color: '#777',
       lineDash: [2, 4],
     }),
-  })
+  }),
 );
 vectorSource.addFeature(feature);
 
@@ -145,7 +145,7 @@ feature.setStyle(
     fill: new Fill({
       color: 'rgba(255, 0, 0, 0.85)',
     }),
-  })
+  }),
 );
 vectorSource.addFeature(feature);
 

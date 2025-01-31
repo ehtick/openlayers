@@ -1,13 +1,15 @@
 import Feature from '../src/ol/Feature.js';
 import Map from '../src/ol/Map.js';
 import View from '../src/ol/View.js';
-import {LineString, Point, Polygon} from '../src/ol/geom.js';
-import {
-  Pointer as PointerInteraction,
-  defaults as defaultInteractions,
-} from '../src/ol/interaction.js';
-import {TileJSON, Vector as VectorSource} from '../src/ol/source.js';
-import {Tile as TileLayer, Vector as VectorLayer} from '../src/ol/layer.js';
+import LineString from '../src/ol/geom/LineString.js';
+import Point from '../src/ol/geom/Point.js';
+import Polygon from '../src/ol/geom/Polygon.js';
+import PointerInteraction from '../src/ol/interaction/Pointer.js';
+import {defaults as defaultInteractions} from '../src/ol/interaction/defaults.js';
+import TileLayer from '../src/ol/layer/Tile.js';
+import VectorLayer from '../src/ol/layer/Vector.js';
+import OGCMapTile from '../src/ol/source/OGCMapTile.js';
+import VectorSource from '../src/ol/source/Vector.js';
 
 class Drag extends PointerInteraction {
   constructor() {
@@ -114,7 +116,7 @@ const lineFeature = new Feature(
   new LineString([
     [-1e7, 1e6],
     [-1e6, 3e6],
-  ])
+  ]),
 );
 
 const polygonFeature = new Feature(
@@ -126,20 +128,16 @@ const polygonFeature = new Feature(
       [-1e6, -1e6],
       [-3e6, -1e6],
     ],
-  ])
+  ]),
 );
-
-const key =
-  'pk.eyJ1IjoiYWhvY2V2YXIiLCJhIjoiY2t0cGdwMHVnMGdlbzMxbDhwazBic2xrNSJ9.WbcTL9uj8JPAsnT9mgb7oQ';
 
 const map = new Map({
   interactions: defaultInteractions().extend([new Drag()]),
   layers: [
     new TileLayer({
-      source: new TileJSON({
-        url:
-          'https://a.tiles.mapbox.com/v4/aj.1x1-degrees.json?secure&access_token=' +
-          key,
+      source: new OGCMapTile({
+        url: 'https://maps.gnosis.earth/ogcapi/collections/NaturalEarth:raster:HYP_HR_SR_OB_DR/map/tiles/WebMercatorQuad',
+        crossOrigin: '',
       }),
     }),
     new VectorLayer({

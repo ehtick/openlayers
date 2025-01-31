@@ -1,34 +1,32 @@
+import {spy as sinonSpy, stub as sinonStub} from 'sinon';
 import Collection from '../../../../src/ol/Collection.js';
-import Control from '../../../../src/ol/control/Control.js';
-import DoubleClickZoom from '../../../../src/ol/interaction/DoubleClickZoom.js';
-import DragPan from '../../../../src/ol/interaction/DragPan.js';
 import Feature from '../../../../src/ol/Feature.js';
-import GeoJSON from '../../../../src/ol/format/GeoJSON.js';
-import ImageLayer from '../../../../src/ol/layer/Image.js';
 import ImageState from '../../../../src/ol/ImageState.js';
-import ImageStatic from '../../../../src/ol/source/ImageStatic.js';
-import Interaction from '../../../../src/ol/interaction/Interaction.js';
-import Layer from '../../../../src/ol/layer/Layer.js';
-import LayerGroup from '../../../../src/ol/layer/Group.js';
 import Map from '../../../../src/ol/Map.js';
 import MapBrowserEvent from '../../../../src/ol/MapBrowserEvent.js';
 import MapEvent from '../../../../src/ol/MapEvent.js';
-import MouseWheelZoom from '../../../../src/ol/interaction/MouseWheelZoom.js';
 import Overlay from '../../../../src/ol/Overlay.js';
+import View from '../../../../src/ol/View.js';
+import Control from '../../../../src/ol/control/Control.js';
+import GeoJSON from '../../../../src/ol/format/GeoJSON.js';
+import {TRUE} from '../../../../src/ol/functions.js';
+import {LineString, Point, Polygon} from '../../../../src/ol/geom.js';
+import DoubleClickZoom from '../../../../src/ol/interaction/DoubleClickZoom.js';
+import DragPan from '../../../../src/ol/interaction/DragPan.js';
+import Interaction from '../../../../src/ol/interaction/Interaction.js';
+import MouseWheelZoom from '../../../../src/ol/interaction/MouseWheelZoom.js';
 import PinchZoom from '../../../../src/ol/interaction/PinchZoom.js';
-import Property from '../../../../src/ol/layer/Property.js';
 import Select from '../../../../src/ol/interaction/Select.js';
+import {defaults as defaultInteractions} from '../../../../src/ol/interaction.js';
+import LayerGroup from '../../../../src/ol/layer/Group.js';
+import ImageLayer from '../../../../src/ol/layer/Image.js';
+import Layer from '../../../../src/ol/layer/Layer.js';
+import Property from '../../../../src/ol/layer/Property.js';
 import TileLayer from '../../../../src/ol/layer/Tile.js';
 import VectorLayer from '../../../../src/ol/layer/Vector.js';
-import VectorSource from '../../../../src/ol/source/Vector.js';
 import VectorTileLayer from '../../../../src/ol/layer/VectorTile.js';
-import VectorTileSource from '../../../../src/ol/source/VectorTile.js';
-import View from '../../../../src/ol/View.js';
-import WebGLPointsLayer from '../../../../src/ol/layer/WebGLPoints.js';
-import XYZ from '../../../../src/ol/source/XYZ.js';
-import {Icon, Style} from '../../../../src/ol/style.js';
-import {LineString, Point, Polygon} from '../../../../src/ol/geom.js';
-import {TRUE} from '../../../../src/ol/functions.js';
+import WebGLVectorLayer from '../../../../src/ol/layer/WebGLVector.js';
+import {tile as tileStrategy} from '../../../../src/ol/loadingstrategy.js';
 import {
   clearUserProjection,
   fromLonLat,
@@ -36,10 +34,13 @@ import {
   transform,
   useGeographic,
 } from '../../../../src/ol/proj.js';
-import {createXYZ} from '../../../../src/ol/tilegrid.js';
-import {defaults as defaultInteractions} from '../../../../src/ol/interaction.js';
+import ImageStatic from '../../../../src/ol/source/ImageStatic.js';
+import VectorSource from '../../../../src/ol/source/Vector.js';
+import VectorTileSource from '../../../../src/ol/source/VectorTile.js';
+import XYZ from '../../../../src/ol/source/XYZ.js';
 import {shared as iconImageCache} from '../../../../src/ol/style/IconImageCache.js';
-import {tile as tileStrategy} from '../../../../src/ol/loadingstrategy.js';
+import {Icon, Style} from '../../../../src/ol/style.js';
+import {createXYZ} from '../../../../src/ol/tilegrid.js';
 
 describe('ol/Map', function () {
   describe('constructor', function () {
@@ -87,7 +88,7 @@ describe('ol/Map', function () {
       map.setView(
         new Promise((r) => {
           resolve = r;
-        })
+        }),
       );
 
       expect(map.getView()).to.be.a(View);
@@ -150,7 +151,7 @@ describe('ol/Map', function () {
           map.addControl(
             new SubControl({
               element: document.createElement('div'),
-            })
+            }),
           );
         }
       }
@@ -354,8 +355,7 @@ describe('ol/Map', function () {
     });
 
     afterEach(function () {
-      map.dispose();
-      document.body.removeChild(target);
+      disposeMap(map);
     });
 
     it('are fired only once after view changes', function (done) {
@@ -463,15 +463,12 @@ describe('ol/Map', function () {
                 },
               }),
             }),
-            new WebGLPointsLayer({
+            new WebGLVectorLayer({
               source: new VectorSource({
                 features: [new Feature(new Point([0, 0]))],
               }),
               style: {
-                symbol: {
-                  color: 'red',
-                  symbolType: 'circle',
-                },
+                'circle-radius': 4,
               },
             }),
           ],
@@ -480,12 +477,19 @@ describe('ol/Map', function () {
 
       it('triggers when all tiles and sources are loaded and faded in', function (done) {
         const layers = map.getLayers().getArray();
-        expect(layers[6].getRenderer().ready).to.be(false);
         map.once('rendercomplete', function () {
           expect(map.tileQueue_.getTilesLoading()).to.be(0);
-          expect(layers[1].getSource().image_.getState()).to.be(
-            ImageState.LOADED
-          );
+          expect(
+            layers[1]
+              .getSource()
+              .getImage(
+                map.getView().calculateExtent(),
+                map.getView().getResolution(),
+                1,
+                map.getView().getProjection(),
+              )
+              .getState(),
+          ).to.be(ImageState.LOADED);
           expect(layers[2].getSource().getFeatures().length).to.be(1);
           expect(layers[6].getRenderer().ready).to.be(true);
           done();
@@ -494,7 +498,7 @@ describe('ol/Map', function () {
           new View({
             center: [0, 0],
             zoom: 0,
-          })
+          }),
         );
       });
 
@@ -504,7 +508,7 @@ describe('ol/Map', function () {
           new View({
             center: [0, 0],
             zoom: 0,
-          })
+          }),
         );
         map.once('rendercomplete', () => done());
       });
@@ -572,7 +576,7 @@ describe('ol/Map', function () {
                 tileUrlFunction: (tileCoord) => tileCoord.join('/'),
                 tileLoadFunction: function (tile, url) {
                   const coordinate = tileGrid.getTileCoordCenter(
-                    tile.getTileCoord()
+                    tile.getTileCoord(),
                   );
                   const feature = new Feature(new Point(coordinate));
                   tile.setFeatures([feature]);
@@ -690,15 +694,13 @@ describe('ol/Map', function () {
               },
             }),
           }),
-          new WebGLPointsLayer({
+          new WebGLVectorLayer({
             source: new VectorSource({
               features: [new Feature(new Point([0, 0]))],
             }),
             style: {
-              symbol: {
-                color: 'red',
-                symbolType: 'circle',
-              },
+              'circle-radius': 4,
+              'circle-fill-color': 'red',
             },
           }),
         ],
@@ -706,15 +708,11 @@ describe('ol/Map', function () {
     });
 
     afterEach(function () {
-      document.body.removeChild(map.getTargetElement());
-      map.setTarget(null);
-      map.dispose();
+      disposeMap(map);
       map.getLayers().forEach((layer) => layer.dispose());
     });
 
     it('is a reliable start-end sequence', function (done) {
-      const layers = map.getLayers().getArray();
-      expect(layers[6].getRenderer().ready).to.be(false);
       let loading = 0;
       map.on('loadstart', () => {
         map.getView().setZoom(0.1);
@@ -728,7 +726,7 @@ describe('ol/Map', function () {
         new View({
           center: [0, 0],
           zoom: 0,
-        })
+        }),
       );
     });
   });
@@ -747,7 +745,7 @@ describe('ol/Map', function () {
               new LineString([
                 [-50, 0],
                 [50, 0],
-              ])
+              ]),
             ),
           ],
         }),
@@ -763,7 +761,7 @@ describe('ol/Map', function () {
       map.renderSync();
     });
     afterEach(function () {
-      document.body.removeChild(target);
+      disposeMap(map);
     });
 
     it('returns an empty array if no feature was found', function () {
@@ -870,7 +868,7 @@ describe('ol/Map', function () {
                       [-100, 50],
                       [-100, 40],
                     ],
-                  ])
+                  ]),
                 ),
               ],
             }),
@@ -885,8 +883,8 @@ describe('ol/Map', function () {
     });
 
     afterEach(function () {
+      disposeMap(map);
       clearUserProjection();
-      document.body.removeChild(target);
     });
 
     it('returns an empty array if no feature was found', function () {
@@ -930,7 +928,7 @@ describe('ol/Map', function () {
                       [-100, 50],
                       [-100, 40],
                     ],
-                  ])
+                  ]),
                 ),
               ],
             }),
@@ -945,8 +943,8 @@ describe('ol/Map', function () {
     });
 
     afterEach(function () {
+      disposeMap(map);
       clearUserProjection();
-      document.body.removeChild(target);
     });
 
     it('returns false if no feature was found', function () {
@@ -990,7 +988,7 @@ describe('ol/Map', function () {
             offset: [32, 32],
             size: [32, 32],
           }),
-        })
+        }),
       );
 
       map = new Map({
@@ -1014,7 +1012,7 @@ describe('ol/Map', function () {
       map.once('rendercomplete', function () {
         const hit = map.forEachFeatureAtPixel(
           map.getPixelFromCoordinate([0, 0]),
-          () => true
+          () => true,
         );
         try {
           expect(hit).to.be(true);
@@ -1049,14 +1047,13 @@ describe('ol/Map', function () {
     });
 
     afterEach(function () {
-      map.dispose();
-      document.body.removeChild(target);
+      disposeMap(map, target);
     });
 
     it('is called when the view.changed() is called', function () {
       const view = map.getView();
 
-      const spy = sinon.spy(map, 'render');
+      const spy = sinonSpy(map, 'render');
       view.changed();
       expect(spy.callCount).to.be(1);
     });
@@ -1065,13 +1062,13 @@ describe('ol/Map', function () {
       const view = map.getView();
       map.setView(null);
 
-      const spy = sinon.spy(map, 'render');
+      const spy = sinonSpy(map, 'render');
       view.changed();
       expect(spy.callCount).to.be(0);
     });
 
     it('calls renderFrame_ and results in a postrender event', function (done) {
-      const spy = sinon.spy(map, 'renderFrame_');
+      const spy = sinonSpy(map, 'renderFrame_');
       map.render();
       map.once('postrender', function (event) {
         expect(event).to.be.a(MapEvent);
@@ -1080,6 +1077,57 @@ describe('ol/Map', function () {
         expect(event.frameState).not.to.be(null);
         done();
       });
+    });
+
+    it('layers dispatch prerender and postrender when not decluttering', function (done) {
+      const layer = new VectorLayer({source: new VectorSource()});
+      let prerender = false;
+      let postrender = false;
+      const renderDeferredSpy = sinonSpy(layer.getRenderer(), 'renderDeferred');
+      layer.on('prerender', () => (prerender = true));
+      layer.on('postrender', () => {
+        expect(renderDeferredSpy.callCount).to.be(0);
+        renderDeferredSpy.restore();
+        postrender = true;
+      });
+      map.addLayer(layer);
+      map.once('postrender', () => {
+        try {
+          expect(prerender).to.be(true);
+          expect(postrender).to.be(true);
+          done();
+        } catch (e) {
+          done(e);
+        }
+      });
+      map.render();
+    });
+
+    it('layers dispatch prerender and postrender when decluttering', function (done) {
+      const layer = new VectorLayer({
+        source: new VectorSource(),
+        declutter: true,
+      });
+      let prerender = false;
+      let postrender = false;
+      const renderDeferredSpy = sinonSpy(layer.getRenderer(), 'renderDeferred');
+      layer.on('prerender', () => (prerender = true));
+      layer.on('postrender', () => {
+        expect(renderDeferredSpy.callCount).to.be(1);
+        renderDeferredSpy.restore();
+        postrender = true;
+      });
+      map.addLayer(layer);
+      map.once('postrender', () => {
+        try {
+          expect(prerender).to.be(true);
+          expect(postrender).to.be(true);
+          done();
+        } catch (e) {
+          done(e);
+        }
+      });
+      map.render();
     });
 
     it('uses the same render frame for subsequent calls', function () {
@@ -1156,9 +1204,25 @@ describe('ol/Map', function () {
       expect(map.targetChangeHandlerKeys_).to.be.ok();
     });
 
+    afterEach(() => {
+      disposeMap(map);
+    });
+
     describe('map with target not attached to dom', function () {
       it('has undefined as size with target not in document', function () {
         expect(map.getSize()).to.be(undefined);
+      });
+    });
+
+    describe('map container with negative width and heigth due to borders', () => {
+      it('does not try to set a negative map size', () => {
+        const target = map.getTargetElement();
+        document.body.appendChild(target);
+        target.style.border = '1px solid black';
+        target.style.display = 'none';
+        map.updateSize();
+        document.body.removeChild(target);
+        expect(map.getSize()).to.eql([0, 0]);
       });
     });
 
@@ -1175,6 +1239,41 @@ describe('ol/Map', function () {
         map.setTarget(document.createElement('div'));
         expect(map.targetChangeHandlerKeys_).to.be.ok();
       });
+    });
+
+    it('detach and re-attach', function (done) {
+      const target = map.getTargetElement();
+      map.setTarget(null);
+      target.style.width = '100px';
+      target.style.height = '100px';
+      document.body.appendChild(target);
+      map.setTarget(target);
+      map.addLayer(
+        new VectorLayer({
+          source: new VectorSource({
+            features: [new Feature(new Point([0, 0]))],
+          }),
+        }),
+      );
+      map.getView().setCenter([0, 0]);
+      map.getView().setZoom(0);
+      map.renderSync();
+      try {
+        expect(target.querySelector('canvas')).to.be.a(HTMLCanvasElement);
+        map.setTarget(null);
+        expect(target.querySelector('canvas')).to.be(null);
+        map.setTarget(target);
+        map.once('rendercomplete', () => {
+          try {
+            expect(target.querySelector('canvas')).to.be.a(HTMLCanvasElement);
+            done();
+          } catch (e) {
+            done(e);
+          }
+        });
+      } finally {
+        target.remove();
+      }
     });
   });
 
@@ -1204,6 +1303,9 @@ describe('ol/Map', function () {
               },
               contains: function () {
                 return hasFocus;
+              },
+              getRootNode: function () {
+                return {};
               },
             };
           },
@@ -1333,7 +1435,7 @@ describe('ol/Map', function () {
         document.body.appendChild(target);
       });
       afterEach(function () {
-        document.body.removeChild(target);
+        target.remove();
       });
 
       it('works with touchend events', function () {
@@ -1356,6 +1458,8 @@ describe('ol/Map', function () {
         expect(position[0]).to.eql(80);
         // 190 = clientY - target.style.top
         expect(position[1]).to.eql(190);
+
+        disposeMap(map);
       });
     });
 
@@ -1383,9 +1487,7 @@ describe('ol/Map', function () {
       });
 
       afterEach(function () {
-        map.removeOverlay(overlay);
-        map.dispose();
-        document.body.removeChild(target);
+        disposeMap(map);
       });
 
       it('returns an overlay by id', function () {
@@ -1427,7 +1529,7 @@ describe('ol/Map', function () {
       const centerMercator = transform(
         centerGeographic,
         getProjection('EPSG:4326'),
-        getProjection('EPSG:3857')
+        getProjection('EPSG:3857'),
       );
       const screenCenter = [500, 500];
 
@@ -1462,8 +1564,7 @@ describe('ol/Map', function () {
       });
 
       afterEach(function () {
-        map.dispose();
-        document.body.removeChild(target);
+        disposeMap(map);
         clearUserProjection();
       });
 
@@ -1472,11 +1573,11 @@ describe('ol/Map', function () {
         const coordinateGeographic = map.getCoordinateFromPixel(screenCenter);
         expect(coordinateGeographic[0]).to.roughlyEqual(
           centerGeographic[0],
-          1e-5
+          1e-5,
         );
         expect(coordinateGeographic[1]).to.roughlyEqual(
           centerGeographic[1],
-          1e-5
+          1e-5,
         );
         done();
       });
@@ -1533,14 +1634,17 @@ describe('ol/Map', function () {
     });
 
     afterEach(function () {
-      map.setTarget(null);
-      document.body.removeChild(target);
+      disposeMap(map, target);
     });
 
     it('calls handleEvent on interaction', function () {
-      const spy = sinon.spy(dragpan, 'handleEvent');
+      const spy = sinonSpy(dragpan, 'handleEvent');
       map.handleMapBrowserEvent(
-        new MapBrowserEvent('pointermove', map, new PointerEvent('pointermove'))
+        new MapBrowserEvent(
+          'pointermove',
+          map,
+          new PointerEvent('pointermove'),
+        ),
       );
       expect(spy.callCount).to.be(1);
       spy.restore();
@@ -1548,16 +1652,20 @@ describe('ol/Map', function () {
 
     it('does not call handleEvent on interaction when map has no target', function () {
       map.setTarget(null);
-      const spy = sinon.spy(dragpan, 'handleEvent');
+      const spy = sinonSpy(dragpan, 'handleEvent');
       map.handleMapBrowserEvent(
-        new MapBrowserEvent('pointermove', map, new PointerEvent('pointermove'))
+        new MapBrowserEvent(
+          'pointermove',
+          map,
+          new PointerEvent('pointermove'),
+        ),
       );
       expect(spy.callCount).to.be(0);
       spy.restore();
     });
 
     it('does not call handleEvent on interaction that has been removed', function () {
-      const spy = sinon.spy(dragpan, 'handleEvent');
+      const spy = sinonSpy(dragpan, 'handleEvent');
       let callCount = 0;
       const interaction = new Interaction({
         handleEvent: function () {
@@ -1568,7 +1676,11 @@ describe('ol/Map', function () {
       });
       map.addInteraction(interaction);
       map.handleMapBrowserEvent(
-        new MapBrowserEvent('pointermove', map, new PointerEvent('pointermove'))
+        new MapBrowserEvent(
+          'pointermove',
+          map,
+          new PointerEvent('pointermove'),
+        ),
       );
       expect(callCount).to.be(1);
       expect(spy.callCount).to.be(0);
@@ -1577,15 +1689,19 @@ describe('ol/Map', function () {
 
     it('does not call handleEvent on interaction when MapBrowserEvent propagation stopped', function () {
       const select = new Select();
-      const selectStub = sinon.stub(select, 'handleEvent');
+      const selectStub = sinonStub(select, 'handleEvent');
       selectStub.callsFake(function (e) {
         e.stopPropagation();
         return true;
       });
       map.addInteraction(select);
-      const spy = sinon.spy(dragpan, 'handleEvent');
+      const spy = sinonSpy(dragpan, 'handleEvent');
       map.handleMapBrowserEvent(
-        new MapBrowserEvent('pointermove', map, new PointerEvent('pointermove'))
+        new MapBrowserEvent(
+          'pointermove',
+          map,
+          new PointerEvent('pointermove'),
+        ),
       );
       expect(spy.callCount).to.be(0);
       expect(selectStub.callCount).to.be(1);

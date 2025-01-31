@@ -1,8 +1,8 @@
 /**
  * @module ol/geom/flat/interiorpoint
  */
+import {ascending} from '../../array.js';
 import {linearRingsContainsXY} from './contains.js';
-import {numberSafeCompareFunction} from '../../array.js';
 
 /**
  * Calculates a point that is likely to lie in the interior of the linear rings.
@@ -24,7 +24,7 @@ export function getInteriorPointOfArray(
   stride,
   flatCenters,
   flatCentersOffset,
-  dest
+  dest,
 ) {
   let i, ii, x, x1, x2, y1, y2;
   const y = flatCenters[flatCentersOffset + 1];
@@ -50,7 +50,7 @@ export function getInteriorPointOfArray(
   // inside the linear ring.
   let pointX = NaN;
   let maxSegmentLength = -Infinity;
-  intersections.sort(numberSafeCompareFunction);
+  intersections.sort(ascending);
   x1 = intersections[0];
   for (i = 1, ii = intersections.length; i < ii; ++i) {
     x2 = intersections[i];
@@ -72,9 +72,8 @@ export function getInteriorPointOfArray(
   if (dest) {
     dest.push(pointX, y, maxSegmentLength);
     return dest;
-  } else {
-    return [pointX, y, maxSegmentLength];
   }
+  return [pointX, y, maxSegmentLength];
 }
 
 /**
@@ -91,8 +90,9 @@ export function getInteriorPointsOfMultiArray(
   offset,
   endss,
   stride,
-  flatCenters
+  flatCenters,
 ) {
+  /** @type {Array<number>} */
   let interiorPoints = [];
   for (let i = 0, ii = endss.length; i < ii; ++i) {
     const ends = endss[i];
@@ -103,7 +103,7 @@ export function getInteriorPointsOfMultiArray(
       stride,
       flatCenters,
       2 * i,
-      interiorPoints
+      interiorPoints,
     );
     offset = ends[ends.length - 1];
   }

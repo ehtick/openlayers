@@ -1,16 +1,15 @@
-import Layer from '../src/ol/layer/Layer.js';
 import Map from '../src/ol/Map.js';
-import Source from '../src/ol/source/Source.js';
 import View from '../src/ol/View.js';
+import FullScreen from '../src/ol/control/FullScreen.js';
+import Layer from '../src/ol/layer/Layer.js';
+import Source from '../src/ol/source/Source.js';
 import Worker from 'worker-loader!./offscreen-canvas.worker.js'; //eslint-disable-line
-import stringify from 'json-stringify-safe';
-import {FullScreen} from '../src/ol/control.js';
+import {createXYZ} from '../src/ol/tilegrid.js';
 import {
   compose,
   create,
   toString as toTransformString,
 } from '../src/ol/transform.js';
-import {createXYZ} from '../src/ol/tilegrid.js';
 
 const worker = new Worker();
 
@@ -21,7 +20,7 @@ let container,
   workerFrameState,
   mainThreadFrameState;
 
-// Transform the container to account for the differnece between the (newer)
+// Transform the container to account for the difference between the (newer)
 // main thread frameState and the (older) worker frameState
 function updateContainerTransform() {
   if (workerFrameState) {
@@ -45,7 +44,7 @@ function updateContainerTransform() {
         renderedResolution / resolution,
         rotation - renderedRotation,
         0,
-        0
+        0,
       );
     }
     transformContainer.style.transform = toTransformString(transform);
@@ -78,7 +77,35 @@ const map = new Map({
           rendering = true;
           worker.postMessage({
             action: 'render',
-            frameState: JSON.parse(stringify(frameState)),
+            frameState: {
+              layerIndex: 0,
+              wantedTiles: {},
+              usedTiles: {},
+              viewHints: frameState.viewHints.slice(0),
+              postRenderFunctions: [],
+              viewState: {
+                center: frameState.viewState.center.slice(0),
+                resolution: frameState.viewState.resolution,
+                rotation: frameState.viewState.rotation,
+                zoom: frameState.viewState.zoom,
+              },
+              pixelRatio: frameState.pixelRatio,
+              size: frameState.size.slice(0),
+              extent: frameState.extent.slice(0),
+              coordinateToPixelTransform:
+                frameState.coordinateToPixelTransform.slice(0),
+              pixelToCoordinateTransform:
+                frameState.pixelToCoordinateTransform.slice(0),
+              layerStatesArray: frameState.layerStatesArray.map((l) => ({
+                zIndex: l.zIndex,
+                visible: l.visible,
+                extent: l.extent,
+                maxResolution: l.maxResolution,
+                minResolution: l.minResolution,
+                sourceState: l.sourceState,
+                managed: l.managed,
+              })),
+            },
           });
         } else {
           frameState.animate = true;
@@ -106,10 +133,9 @@ map.on('pointermove', function (evt) {
   if (evt.dragging) {
     return;
   }
-  const pixel = map.getEventPixel(evt.originalEvent);
   worker.postMessage({
     action: 'requestFeatures',
-    pixel: pixel,
+    pixel: evt.pixel,
   });
 });
 
@@ -128,9 +154,9 @@ worker.addEventListener('message', (message) => {
               image: imageBitmap,
               src: message.data.src,
             },
-            [imageBitmap]
+            [imageBitmap],
           );
-        }
+        },
       );
     });
     image.src = message.data.src;
@@ -140,7 +166,7 @@ worker.addEventListener('message', (message) => {
     // Worker requested a new render frame
     map.render();
   } else if (canvas && message.data.action === 'rendered') {
-    // Worker provies a new render frame
+    // Worker provides a new render frame
     requestAnimationFrame(function () {
       const imageData = message.data.imageData;
       canvas.width = imageData.width;
@@ -164,7 +190,10 @@ function showInfo(propertiesFromFeatures) {
   const properties = propertiesFromFeatures.map((e) =>
     Object.keys(e)
       .filter((key) => !key.includes(':'))
-      .reduce((newObj, currKey) => ((newObj[currKey] = e[currKey]), newObj), {})
+      .reduce(
+        (newObj, currKey) => ((newObj[currKey] = e[currKey]), newObj),
+        {},
+      ),
   );
   info.innerText = JSON.stringify(properties, null, 2);
   info.style.opacity = 1;

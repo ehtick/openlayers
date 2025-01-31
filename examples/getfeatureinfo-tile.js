@@ -1,7 +1,7 @@
 import Map from '../src/ol/Map.js';
+import View from '../src/ol/View.js';
 import TileLayer from '../src/ol/layer/Tile.js';
 import TileWMS from '../src/ol/source/TileWMS.js';
-import View from '../src/ol/View.js';
 
 const wmsSource = new TileWMS({
   url: 'https://ahocevar.com/geoserver/wms',
@@ -32,7 +32,7 @@ map.on('singleclick', function (evt) {
     evt.coordinate,
     viewResolution,
     'EPSG:3857',
-    {'INFO_FORMAT': 'text/html'}
+    {'INFO_FORMAT': 'text/html'},
   );
   if (url) {
     fetch(url)

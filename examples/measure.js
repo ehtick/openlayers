@@ -1,13 +1,19 @@
-import Draw from '../src/ol/interaction/Draw.js';
 import Map from '../src/ol/Map.js';
+import {unByKey} from '../src/ol/Observable.js';
 import Overlay from '../src/ol/Overlay.js';
 import View from '../src/ol/View.js';
-import {Circle as CircleStyle, Fill, Stroke, Style} from '../src/ol/style.js';
-import {LineString, Polygon} from '../src/ol/geom.js';
-import {OSM, Vector as VectorSource} from '../src/ol/source.js';
-import {Tile as TileLayer, Vector as VectorLayer} from '../src/ol/layer.js';
+import LineString from '../src/ol/geom/LineString.js';
+import Polygon from '../src/ol/geom/Polygon.js';
+import Draw from '../src/ol/interaction/Draw.js';
+import TileLayer from '../src/ol/layer/Tile.js';
+import VectorLayer from '../src/ol/layer/Vector.js';
+import OSM from '../src/ol/source/OSM.js';
+import VectorSource from '../src/ol/source/Vector.js';
 import {getArea, getLength} from '../src/ol/sphere.js';
-import {unByKey} from '../src/ol/Observable.js';
+import CircleStyle from '../src/ol/style/Circle.js';
+import Fill from '../src/ol/style/Fill.js';
+import Stroke from '../src/ol/style/Stroke.js';
+import Style from '../src/ol/style/Style.js';
 
 const raster = new TileLayer({
   source: new OSM(),
@@ -145,30 +151,37 @@ const formatArea = function (polygon) {
   return output;
 };
 
+const style = new Style({
+  fill: new Fill({
+    color: 'rgba(255, 255, 255, 0.2)',
+  }),
+  stroke: new Stroke({
+    color: 'rgba(0, 0, 0, 0.5)',
+    lineDash: [10, 10],
+    width: 2,
+  }),
+  image: new CircleStyle({
+    radius: 5,
+    stroke: new Stroke({
+      color: 'rgba(0, 0, 0, 0.7)',
+    }),
+    fill: new Fill({
+      color: 'rgba(255, 255, 255, 0.2)',
+    }),
+  }),
+});
+
 function addInteraction() {
   const type = typeSelect.value == 'area' ? 'Polygon' : 'LineString';
   draw = new Draw({
     source: source,
     type: type,
-    style: new Style({
-      fill: new Fill({
-        color: 'rgba(255, 255, 255, 0.2)',
-      }),
-      stroke: new Stroke({
-        color: 'rgba(0, 0, 0, 0.5)',
-        lineDash: [10, 10],
-        width: 2,
-      }),
-      image: new CircleStyle({
-        radius: 5,
-        stroke: new Stroke({
-          color: 'rgba(0, 0, 0, 0.7)',
-        }),
-        fill: new Fill({
-          color: 'rgba(255, 255, 255, 0.2)',
-        }),
-      }),
-    }),
+    style: function (feature) {
+      const geometryType = feature.getGeometry().getType();
+      if (geometryType === type || geometryType === 'Point') {
+        return style;
+      }
+    },
   });
   map.addInteraction(draw);
 
@@ -215,7 +228,7 @@ function addInteraction() {
  */
 function createHelpTooltip() {
   if (helpTooltipElement) {
-    helpTooltipElement.parentNode.removeChild(helpTooltipElement);
+    helpTooltipElement.remove();
   }
   helpTooltipElement = document.createElement('div');
   helpTooltipElement.className = 'ol-tooltip hidden';
@@ -232,7 +245,7 @@ function createHelpTooltip() {
  */
 function createMeasureTooltip() {
   if (measureTooltipElement) {
-    measureTooltipElement.parentNode.removeChild(measureTooltipElement);
+    measureTooltipElement.remove();
   }
   measureTooltipElement = document.createElement('div');
   measureTooltipElement.className = 'ol-tooltip ol-tooltip-measure';

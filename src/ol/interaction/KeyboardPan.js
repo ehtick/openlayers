@@ -1,16 +1,16 @@
 /**
  * @module ol/interaction/KeyboardPan
  */
-import EventType from '../events/EventType.js';
-import Interaction, {pan} from './Interaction.js';
-import KeyCode from '../events/KeyCode.js';
-import {noModifierKeys, targetNotEditable} from '../events/condition.js';
 import {rotate as rotateCoordinate} from '../coordinate.js';
+import EventType from '../events/EventType.js';
+import Key from '../events/Key.js';
+import {noModifierKeys, targetNotEditable} from '../events/condition.js';
+import Interaction, {pan} from './Interaction.js';
 
 /**
  * @typedef {Object} Options
  * @property {import("../events/condition.js").Condition} [condition] A function that
- * takes an {@link module:ol/MapBrowserEvent~MapBrowserEvent} and returns a
+ * takes a {@link module:ol/MapBrowserEvent~MapBrowserEvent} and returns a
  * boolean to indicate whether that event should be handled. Default is
  * {@link module:ol/events/condition.noModifierKeys} and
  * {@link module:ol/events/condition.targetNotEditable}.
@@ -81,7 +81,7 @@ class KeyboardPan extends Interaction {
    * pressed).
    * @param {import("../MapBrowserEvent.js").default} mapBrowserEvent Map browser event.
    * @return {boolean} `false` to stop event propagation.
-   * @this {KeyboardPan}
+   * @override
    */
   handleEvent(mapBrowserEvent) {
     let stopEvent = false;
@@ -89,24 +89,24 @@ class KeyboardPan extends Interaction {
       const keyEvent = /** @type {KeyboardEvent} */ (
         mapBrowserEvent.originalEvent
       );
-      const keyCode = keyEvent.keyCode;
+      const key = keyEvent.key;
       if (
         this.condition_(mapBrowserEvent) &&
-        (keyCode == KeyCode.DOWN ||
-          keyCode == KeyCode.LEFT ||
-          keyCode == KeyCode.RIGHT ||
-          keyCode == KeyCode.UP)
+        (key == Key.DOWN ||
+          key == Key.LEFT ||
+          key == Key.RIGHT ||
+          key == Key.UP)
       ) {
         const map = mapBrowserEvent.map;
         const view = map.getView();
         const mapUnitsDelta = view.getResolution() * this.pixelDelta_;
         let deltaX = 0,
           deltaY = 0;
-        if (keyCode == KeyCode.DOWN) {
+        if (key == Key.DOWN) {
           deltaY = -mapUnitsDelta;
-        } else if (keyCode == KeyCode.LEFT) {
+        } else if (key == Key.LEFT) {
           deltaX = -mapUnitsDelta;
-        } else if (keyCode == KeyCode.RIGHT) {
+        } else if (key == Key.RIGHT) {
           deltaX = mapUnitsDelta;
         } else {
           deltaY = mapUnitsDelta;

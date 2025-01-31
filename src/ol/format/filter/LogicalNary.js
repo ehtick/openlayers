@@ -1,8 +1,8 @@
 /**
  * @module ol/format/filter/LogicalNary
  */
-import Filter from './Filter.js';
 import {assert} from '../../asserts.js';
+import Filter from './Filter.js';
 
 /**
  * @classdesc
@@ -23,7 +23,7 @@ class LogicalNary extends Filter {
      * @type {Array<import("./Filter.js").default>}
      */
     this.conditions = conditions;
-    assert(this.conditions.length >= 2, 57); // At least 2 conditions are required.
+    assert(this.conditions.length >= 2, 'At least 2 conditions are required');
   }
 }
 

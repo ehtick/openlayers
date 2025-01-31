@@ -278,8 +278,8 @@ $(function () {
 
   // warn about outdated version
   const currentVersion = document.getElementById('package-version').innerHTML;
-  const packageUrl = 'https://raw.githubusercontent.com/openlayers/openlayers.github.io/build/package.json';
-  fetch(packageUrl).then(function(response) {
+  const releaseUrl = 'https://cdn.jsdelivr.net/npm/ol/package.json';
+  fetch(releaseUrl).then(function(response) {
     return response.json();
   }).then(function(json) {
     const latestVersion = json.version;

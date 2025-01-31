@@ -1,10 +1,10 @@
 /**
  * @module ol/interaction/PinchZoom
  */
+import {FALSE} from '../functions.js';
 import PointerInteraction, {
   centroid as centroidFromPointers,
 } from './Pointer.js';
-import {FALSE} from '../functions.js';
 
 /**
  * @typedef {Object} Options
@@ -62,6 +62,7 @@ class PinchZoom extends PointerInteraction {
   /**
    * Handle pointer drag events.
    * @param {import("../MapBrowserEvent.js").default} mapBrowserEvent Event.
+   * @override
    */
   handleDragEvent(mapBrowserEvent) {
     let scaleDelta = 1.0;
@@ -87,11 +88,9 @@ class PinchZoom extends PointerInteraction {
     }
 
     // scale anchor point.
-    const viewportPosition = map.getViewport().getBoundingClientRect();
-    const centroid = centroidFromPointers(this.targetPointers);
-    centroid[0] -= viewportPosition.left;
-    centroid[1] -= viewportPosition.top;
-    this.anchor_ = map.getCoordinateFromPixelInternal(centroid);
+    this.anchor_ = map.getCoordinateFromPixelInternal(
+      map.getEventPixel(centroidFromPointers(this.targetPointers)),
+    );
 
     // scale, bypass the resolution constraint
     map.render();
@@ -102,6 +101,7 @@ class PinchZoom extends PointerInteraction {
    * Handle pointer up events.
    * @param {import("../MapBrowserEvent.js").default} mapBrowserEvent Event.
    * @return {boolean} If the event was consumed.
+   * @override
    */
   handleUpEvent(mapBrowserEvent) {
     if (this.targetPointers.length < 2) {
@@ -110,15 +110,15 @@ class PinchZoom extends PointerInteraction {
       const direction = this.lastScaleDelta_ > 1 ? 1 : -1;
       view.endInteraction(this.duration_, direction);
       return false;
-    } else {
-      return true;
     }
+    return true;
   }
 
   /**
    * Handle pointer down events.
    * @param {import("../MapBrowserEvent.js").default} mapBrowserEvent Event.
    * @return {boolean} If the event was consumed.
+   * @override
    */
   handleDownEvent(mapBrowserEvent) {
     if (this.targetPointers.length >= 2) {
@@ -130,9 +130,8 @@ class PinchZoom extends PointerInteraction {
         map.getView().beginInteraction();
       }
       return true;
-    } else {
-      return false;
     }
+    return false;
   }
 }
 

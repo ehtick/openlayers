@@ -1,7 +1,7 @@
-import ImageLayer from '../src/ol/layer/Image.js';
-import ImageWMS from '../src/ol/source/ImageWMS.js';
 import Map from '../src/ol/Map.js';
 import View from '../src/ol/View.js';
+import ImageLayer from '../src/ol/layer/Image.js';
+import ImageWMS from '../src/ol/source/ImageWMS.js';
 
 const wmsSource = new ImageWMS({
   url: 'https://ahocevar.com/geoserver/wms',
@@ -32,7 +32,7 @@ map.on('singleclick', function (evt) {
     evt.coordinate,
     viewResolution,
     'EPSG:3857',
-    {'INFO_FORMAT': 'text/html'}
+    {'INFO_FORMAT': 'text/html'},
   );
   if (url) {
     fetch(url)

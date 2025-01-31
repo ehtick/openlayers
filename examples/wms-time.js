@@ -1,10 +1,10 @@
 import Map from '../src/ol/Map.js';
-import Stamen from '../src/ol/source/Stamen.js';
-import TileLayer from '../src/ol/layer/Tile.js';
-import TileWMS from '../src/ol/source/TileWMS.js';
 import View from '../src/ol/View.js';
 import {getCenter} from '../src/ol/extent.js';
+import TileLayer from '../src/ol/layer/Tile.js';
 import {transformExtent} from '../src/ol/proj.js';
+import StadiaMaps from '../src/ol/source/StadiaMaps.js';
+import TileWMS from '../src/ol/source/TileWMS.js';
 
 function threeHoursAgo() {
   return new Date(Math.round(Date.now() / 3600000) * 3600000 - 3600000 * 3);
@@ -17,8 +17,8 @@ let animationId = null;
 
 const layers = [
   new TileLayer({
-    source: new Stamen({
-      layer: 'terrain',
+    source: new StadiaMaps({
+      layer: 'stamen_terrain',
     }),
   }),
   new TileLayer({

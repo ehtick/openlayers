@@ -1,8 +1,10 @@
 import Map from '../src/ol/Map.js';
 import View from '../src/ol/View.js';
-import {Image as ImageLayer, Tile as TileLayer} from '../src/ol/layer.js';
-import {Raster as RasterSource, XYZ} from '../src/ol/source.js';
+import ImageLayer from '../src/ol/layer/Image.js';
+import TileLayer from '../src/ol/layer/Tile.js';
 import {fromLonLat} from '../src/ol/proj.js';
+import ImageTile from '../src/ol/source/ImageTile.js';
+import RasterSource from '../src/ol/source/Raster.js';
 
 function flood(pixels, data) {
   const pixel = pixels[0];
@@ -26,12 +28,13 @@ const attributions =
   '<a href="https://www.maptiler.com/copyright/" target="_blank">&copy; MapTiler</a> ' +
   '<a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>';
 
-const elevation = new XYZ({
+const elevation = new ImageTile({
   // The RGB values in the source collectively represent elevation.
-  // Interpolation of individual colors would produce incorrect evelations and is disabled.
-  url: 'https://api.maptiler.com/tiles/terrain-rgb/{z}/{x}/{y}.png?key=' + key,
+  // Interpolation of individual colors would produce incorrect elevations and is disabled.
+  url:
+    'https://api.maptiler.com/tiles/terrain-rgb-v2/{z}/{x}/{y}.webp?key=' + key,
   tileSize: 512,
-  maxZoom: 12,
+  maxZoom: 14,
   crossOrigin: '',
   interpolate: false,
 });
@@ -45,9 +48,10 @@ const map = new Map({
   target: 'map',
   layers: [
     new TileLayer({
-      source: new XYZ({
+      source: new ImageTile({
         attributions: attributions,
-        url: 'https://api.maptiler.com/maps/streets/{z}/{x}/{y}.png?key=' + key,
+        url:
+          'https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=' + key,
         tileSize: 512,
         maxZoom: 22,
       }),

@@ -1,9 +1,9 @@
 import Map from '../src/ol/Map.js';
-import TileLayer from '../src/ol/layer/Tile.js';
 import View from '../src/ol/View.js';
-import XYZ from '../src/ol/source/XYZ.js';
+import TileLayer from '../src/ol/layer/Tile.js';
 import {fromLonLat} from '../src/ol/proj.js';
 import {getRenderPixel} from '../src/ol/render.js';
+import ImageTile from '../src/ol/source/ImageTile.js';
 
 const key = 'get_your_own_D6rA4zTHduk6KOKTXzGB';
 const attributions =
@@ -11,18 +11,19 @@ const attributions =
   '<a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>';
 
 const roads = new TileLayer({
-  source: new XYZ({
+  source: new ImageTile({
     attributions: attributions,
-    url: 'https://api.maptiler.com/maps/streets/{z}/{x}/{y}.png?key=' + key,
+    url: 'https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=' + key,
     tileSize: 512,
     maxZoom: 22,
   }),
 });
 
 const imagery = new TileLayer({
-  source: new XYZ({
+  source: new ImageTile({
     attributions: attributions,
-    url: 'https://api.maptiler.com/tiles/satellite/{z}/{x}/{y}.jpg?key=' + key,
+    url: 'https://api.maptiler.com/maps/satellite/{z}/{x}/{y}.jpg?key=' + key,
+    tileSize: 512,
     maxZoom: 20,
   }),
 });
@@ -40,11 +41,11 @@ const map = new Map({
 
 let radius = 75;
 document.addEventListener('keydown', function (evt) {
-  if (evt.which === 38) {
+  if (evt.key === 'ArrowUp') {
     radius = Math.min(radius + 5, 150);
     map.render();
     evt.preventDefault();
-  } else if (evt.which === 40) {
+  } else if (evt.key === 'ArrowDown') {
     radius = Math.max(radius - 5, 25);
     map.render();
     evt.preventDefault();
@@ -55,7 +56,7 @@ document.addEventListener('keydown', function (evt) {
 let mousePosition = null;
 
 container.addEventListener('mousemove', function (event) {
-  mousePosition = map.getEventPixel(event);
+  mousePosition = event.pixel;
   map.render();
 });
 
@@ -77,7 +78,7 @@ imagery.on('prerender', function (event) {
       mousePosition[1],
     ]);
     const canvasRadius = Math.sqrt(
-      Math.pow(offset[0] - pixel[0], 2) + Math.pow(offset[1] - pixel[1], 2)
+      Math.pow(offset[0] - pixel[0], 2) + Math.pow(offset[1] - pixel[1], 2),
     );
     ctx.arc(pixel[0], pixel[1], canvasRadius, 0, 2 * Math.PI);
     ctx.lineWidth = (5 * canvasRadius) / radius;

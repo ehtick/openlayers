@@ -4,10 +4,10 @@
  * above layers.
  */
 
-import Control from '../../../../src/ol/control/Control.js';
-import Layer from '../../../../src/ol/layer/Layer.js';
 import Map from '../../../../src/ol/Map.js';
 import View from '../../../../src/ol/View.js';
+import Control from '../../../../src/ol/control/Control.js';
+import Layer from '../../../../src/ol/layer/Layer.js';
 
 class Element extends Layer {
   constructor(options, style) {
@@ -26,10 +26,6 @@ class Element extends Layer {
 
   render() {
     return this.element;
-  }
-
-  createRenderer() {
-    return {};
   }
 }
 
@@ -61,7 +57,7 @@ new Map({
         background: 'red',
         width: '50%',
         height: '100%',
-      }
+      },
     ),
     new Element(
       {
@@ -71,7 +67,7 @@ new Map({
         background: 'green',
         width: '100%',
         height: '50%',
-      }
+      },
     ),
   ],
   controls: [

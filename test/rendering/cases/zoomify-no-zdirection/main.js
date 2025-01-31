@@ -1,6 +1,6 @@
 import Map from '../../../../src/ol/Map.js';
-import TileLayer from '../../../../src/ol/layer/Tile.js';
 import View from '../../../../src/ol/View.js';
+import TileLayer from '../../../../src/ol/layer/Tile.js';
 import Zoomify from '../../../../src/ol/source/Zoomify.js';
 
 const layer = new TileLayer({
@@ -8,6 +8,7 @@ const layer = new TileLayer({
     url: '/data/tiles/zoomify/',
     size: [200, 200],
     tileSize: 100,
+    transition: 0,
   }),
 });
 

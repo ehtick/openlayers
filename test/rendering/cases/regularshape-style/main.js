@@ -1,17 +1,23 @@
 import Feature from '../../../../src/ol/Feature.js';
-import Fill from '../../../../src/ol/style/Fill.js';
 import Map from '../../../../src/ol/Map.js';
+import View from '../../../../src/ol/View.js';
 import Point from '../../../../src/ol/geom/Point.js';
+import VectorLayer from '../../../../src/ol/layer/Vector.js';
+import VectorSource from '../../../../src/ol/source/Vector.js';
+import Fill from '../../../../src/ol/style/Fill.js';
 import RegularShape from '../../../../src/ol/style/RegularShape.js';
 import Stroke from '../../../../src/ol/style/Stroke.js';
 import Style from '../../../../src/ol/style/Style.js';
-import VectorLayer from '../../../../src/ol/layer/Vector.js';
-import VectorSource from '../../../../src/ol/source/Vector.js';
-import View from '../../../../src/ol/View.js';
 import {Icon} from '../../../../src/ol/style.js';
 
 const vectorSource = new VectorSource();
-function createFeatures(stroke, fill, offSet = [0, 0]) {
+function createFeatures(
+  stroke,
+  fill,
+  offSet = [0, 0],
+  scale = 1,
+  triangleAngle = 0,
+) {
   let feature;
   feature = new Feature({
     geometry: new Point([offSet[0], offSet[1]]),
@@ -26,6 +32,7 @@ function createFeatures(stroke, fill, offSet = [0, 0]) {
         radius: 10,
         angle: Math.PI / 4,
         displacement: [-15, 15],
+        scale: scale,
       }),
     }),
     new Style({
@@ -36,6 +43,7 @@ function createFeatures(stroke, fill, offSet = [0, 0]) {
         anchorXUnits: 'fraction',
         anchorYUnits: 'fraction',
         displacement: [-15, 15],
+        scale: scale,
       }),
     }),
   ]);
@@ -53,9 +61,9 @@ function createFeatures(stroke, fill, offSet = [0, 0]) {
         points: 3,
         radius: 10,
         rotation: Math.PI / 4,
-        angle: 0,
+        angle: triangleAngle,
       }),
-    })
+    }),
   );
   vectorSource.addFeature(feature);
 
@@ -73,7 +81,7 @@ function createFeatures(stroke, fill, offSet = [0, 0]) {
         radius2: 4,
         angle: 0,
       }),
-    })
+    }),
   );
   vectorSource.addFeature(feature);
 
@@ -91,7 +99,7 @@ function createFeatures(stroke, fill, offSet = [0, 0]) {
         radius2: 0,
         angle: 0,
       }),
-    })
+    }),
   );
   vectorSource.addFeature(feature);
 
@@ -110,7 +118,7 @@ function createFeatures(stroke, fill, offSet = [0, 0]) {
         angle: 0,
         scale: [1, 0.5],
       }),
-    })
+    }),
   );
   vectorSource.addFeature(feature);
 }
@@ -121,7 +129,7 @@ createFeatures(
     lineDash: [10, 5],
   }),
   null,
-  [50, 50]
+  [50, 50],
 );
 createFeatures(
   new Stroke({
@@ -129,7 +137,16 @@ createFeatures(
     lineDashOffset: 5,
   }),
   null,
-  [-50, -50]
+  [-50, -50],
+);
+createFeatures(
+  new Stroke({
+    lineDash: [10, 5],
+  }),
+  null,
+  [-50, 50],
+  1.5,
+  Math.PI / 4,
 );
 
 createFeatures(new Stroke(), new Fill(), [50, -50]);

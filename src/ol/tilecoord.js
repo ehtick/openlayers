@@ -22,9 +22,8 @@ export function createOrUpdate(z, x, y, tileCoord) {
     tileCoord[1] = x;
     tileCoord[2] = y;
     return tileCoord;
-  } else {
-    return [z, x, y];
   }
+  return [z, x, y];
 }
 
 /**
@@ -73,7 +72,17 @@ export function fromKey(key) {
  * @return {number} Hash.
  */
 export function hash(tileCoord) {
-  return (tileCoord[1] << tileCoord[0]) + tileCoord[2];
+  return hashZXY(tileCoord[0], tileCoord[1], tileCoord[2]);
+}
+
+/**
+ * @param {number} z The tile z coordinate.
+ * @param {number} x The tile x coordinate.
+ * @param {number} y The tile y coordinate.
+ * @return {number} Hash.
+ */
+export function hashZXY(z, x, y) {
+  return (x << z) + y;
 }
 
 /**
@@ -92,7 +101,6 @@ export function withinExtentAndZ(tileCoord, tileGrid) {
   const tileRange = tileGrid.getFullTileRange(z);
   if (!tileRange) {
     return true;
-  } else {
-    return tileRange.containsXY(x, y);
   }
+  return tileRange.containsXY(x, y);
 }

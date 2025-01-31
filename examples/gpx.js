@@ -1,10 +1,14 @@
-import GPX from '../src/ol/format/GPX.js';
 import Map from '../src/ol/Map.js';
-import VectorSource from '../src/ol/source/Vector.js';
 import View from '../src/ol/View.js';
-import XYZ from '../src/ol/source/XYZ.js';
-import {Circle as CircleStyle, Fill, Stroke, Style} from '../src/ol/style.js';
-import {Tile as TileLayer, Vector as VectorLayer} from '../src/ol/layer.js';
+import GPX from '../src/ol/format/GPX.js';
+import TileLayer from '../src/ol/layer/Tile.js';
+import VectorLayer from '../src/ol/layer/Vector.js';
+import ImageTile from '../src/ol/source/ImageTile.js';
+import VectorSource from '../src/ol/source/Vector.js';
+import CircleStyle from '../src/ol/style/Circle.js';
+import Fill from '../src/ol/style/Fill.js';
+import Stroke from '../src/ol/style/Stroke.js';
+import Style from '../src/ol/style/Style.js';
 
 const key = 'get_your_own_D6rA4zTHduk6KOKTXzGB';
 const attributions =
@@ -12,9 +16,10 @@ const attributions =
   '<a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>';
 
 const raster = new TileLayer({
-  source: new XYZ({
+  source: new ImageTile({
     attributions: attributions,
-    url: 'https://api.maptiler.com/tiles/satellite/{z}/{x}/{y}.jpg?key=' + key,
+    url: 'https://api.maptiler.com/maps/satellite/{z}/{x}/{y}.jpg?key=' + key,
+    tileSize: 512,
     maxZoom: 20,
   }),
 });
@@ -88,8 +93,7 @@ map.on('pointermove', function (evt) {
   if (evt.dragging) {
     return;
   }
-  const pixel = map.getEventPixel(evt.originalEvent);
-  displayFeatureInfo(pixel);
+  displayFeatureInfo(evt.pixel);
 });
 
 map.on('click', function (evt) {

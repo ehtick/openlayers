@@ -2,7 +2,8 @@
  * @module ol/control/MousePosition
  */
 
-import Control from './Control.js';
+import {wrapX} from '../coordinate.js';
+import {listen} from '../events.js';
 import EventType from '../pointer/EventType.js';
 import {
   get as getProjection,
@@ -10,7 +11,7 @@ import {
   getUserProjection,
   identityTransform,
 } from '../proj.js';
-import {listen} from '../events.js';
+import Control from './Control.js';
 
 /**
  * @type {string}
@@ -46,6 +47,8 @@ const COORDINATE_FORMAT = 'coordinateFormat';
  * initially and the last position is retained when the mouse leaves the viewport.
  * When a string is provided (e.g. `'no position'` or `''` for an empty string) it is used as a
  * placeholder.
+ * @property {boolean} [wrapX=true] Wrap the world horizontally on the projection's antimeridian, if it
+ * is a global projection.
  */
 
 /**
@@ -130,6 +133,12 @@ class MousePosition extends Control {
      * @type {?import("../proj.js").TransformFunction}
      */
     this.transform_ = null;
+
+    /**
+     * @private
+     * @type {boolean}
+     */
+    this.wrapX_ = options.wrapX === false ? false : true;
   }
 
   /**
@@ -190,17 +199,18 @@ class MousePosition extends Control {
    * the map here.
    * @param {import("../Map.js").default|null} map Map.
    * @api
+   * @override
    */
   setMap(map) {
     super.setMap(map);
     if (map) {
       const viewport = map.getViewport();
       this.listenerKeys.push(
-        listen(viewport, EventType.POINTERMOVE, this.handleMouseMove, this)
+        listen(viewport, EventType.POINTERMOVE, this.handleMouseMove, this),
       );
       if (this.renderOnMouseOut_) {
         this.listenerKeys.push(
-          listen(viewport, EventType.POINTEROUT, this.handleMouseOut, this)
+          listen(viewport, EventType.POINTEROUT, this.handleMouseOut, this),
         );
       }
       this.updateHTML_(null);
@@ -241,7 +251,7 @@ class MousePosition extends Control {
         if (projection) {
           this.transform_ = getTransformFromProjections(
             this.mapProjection_,
-            projection
+            projection,
           );
         } else {
           this.transform_ = identityTransform;
@@ -254,10 +264,15 @@ class MousePosition extends Control {
         if (userProjection) {
           this.transform_ = getTransformFromProjections(
             this.mapProjection_,
-            userProjection
+            userProjection,
           );
         }
         this.transform_(coordinate, coordinate);
+        if (this.wrapX_) {
+          const projection =
+            userProjection || this.getProjection() || this.mapProjection_;
+          wrapX(coordinate, projection);
+        }
         const coordinateFormat = this.getCoordinateFormat();
         if (coordinateFormat) {
           html = coordinateFormat(coordinate);

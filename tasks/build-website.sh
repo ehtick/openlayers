@@ -71,11 +71,20 @@ echo "Building API docs for ${version}"
 npm run apidoc
 mv build/apidoc ${build}/en/${version}/
 
-echo "Building the legacy build for ${version}"
-npm run build-legacy
-mv build/legacy ${build}/en/${version}/
+echo "Building the package ${version}"
+npm run build-package
+mv build/ol ${build}/en/${version}/
 
 if [[ "${latest}" == "${version}" ]] ; then
   echo "Copying to en/latest"
   cp -r ${build}/en/${version} ${build}/en/latest
+
+  echo "Building release artifacts"
+  pushd ${build}
+  zip -r ${OLDPWD}/build/${version}-site.zip . -x "en/${version}/*"
+  popd
+
+  pushd ${build}/en/${version}/ol
+  zip -r ${OLDPWD}/build/${version}-package.zip .
+  popd
 fi

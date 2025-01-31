@@ -1,37 +1,42 @@
+import {unzipSync} from 'fflate';
 import Map from '../src/ol/Map.js';
 import View from '../src/ol/View.js';
-import {
-  DragAndDrop,
-  defaults as defaultInteractions,
-} from '../src/ol/interaction.js';
-import {GPX, GeoJSON, IGC, KML, TopoJSON} from '../src/ol/format.js';
-import {OSM, Vector as VectorSource} from '../src/ol/source.js';
-import {Tile as TileLayer, Vector as VectorLayer} from '../src/ol/layer.js';
+import GPX from '../src/ol/format/GPX.js';
+import GeoJSON from '../src/ol/format/GeoJSON.js';
+import IGC from '../src/ol/format/IGC.js';
+import KML from '../src/ol/format/KML.js';
+import TopoJSON from '../src/ol/format/TopoJSON.js';
+import DragAndDrop from '../src/ol/interaction/DragAndDrop.js';
+import {defaults as defaultInteractions} from '../src/ol/interaction/defaults.js';
+import TileLayer from '../src/ol/layer/Tile.js';
+import VectorLayer from '../src/ol/layer/Vector.js';
+import OSM from '../src/ol/source/OSM.js';
+import VectorSource from '../src/ol/source/Vector.js';
 
 // Create functions to extract KML and icons from KMZ array buffer,
 // which must be done synchronously.
 
-const zip = new JSZip();
+let zip;
 
 function getKMLData(buffer) {
-  let kmlData;
-  zip.load(buffer);
-  const kmlFile = zip.file(/\.kml$/i)[0];
-  if (kmlFile) {
-    kmlData = kmlFile.asText();
+  zip = unzipSync(new Uint8Array(buffer));
+  const kml = Object.keys(zip).find((key) => /\.kml$/i.test(key));
+  if (!(kml in zip)) {
+    return null;
   }
-  return kmlData;
+  return new TextDecoder().decode(zip[kml]);
 }
 
 function getKMLImage(href) {
   const index = window.location.href.lastIndexOf('/');
-  if (index !== -1) {
-    const kmlFile = zip.file(href.slice(index + 1));
-    if (kmlFile) {
-      return URL.createObjectURL(new Blob([kmlFile.asArrayBuffer()]));
-    }
+  if (index === -1) {
+    return href;
   }
-  return href;
+  const image = href.slice(index + 1);
+  if (!(image in zip)) {
+    return href;
+  }
+  return URL.createObjectURL(new Blob([zip[image]]));
 }
 
 // Define a KMZ format class by subclassing ol/format/KML
@@ -85,20 +90,17 @@ dragAndDropInteraction.on('addfeatures', function (event) {
   map.addLayer(
     new VectorLayer({
       source: vectorSource,
-    })
+    }),
   );
   map.getView().fit(vectorSource.getExtent());
 });
 
 const displayFeatureInfo = function (pixel) {
-  const features = [];
-  map.forEachFeatureAtPixel(pixel, function (feature) {
-    features.push(feature);
-  });
+  const features = map.getFeaturesAtPixel(pixel);
+  let html;
   if (features.length > 0) {
     const info = [];
-    let i, ii;
-    for (i = 0, ii = features.length; i < ii; ++i) {
+    for (let i = 0, ii = features.length; i < ii; ++i) {
       const description =
         features[i].get('description') ||
         features[i].get('name') ||
@@ -108,18 +110,16 @@ const displayFeatureInfo = function (pixel) {
         info.push(description);
       }
     }
-    document.getElementById('info').innerHTML = info.join('<br/>') || '&nbsp';
-  } else {
-    document.getElementById('info').innerHTML = '&nbsp;';
+    html = info.join('<br/>');
   }
+  document.getElementById('info').innerHTML = html ?? '';
 };
 
 map.on('pointermove', function (evt) {
   if (evt.dragging) {
     return;
   }
-  const pixel = map.getEventPixel(evt.originalEvent);
-  displayFeatureInfo(pixel);
+  displayFeatureInfo(evt.pixel);
 });
 
 map.on('click', function (evt) {
@@ -132,9 +132,7 @@ const link = document.getElementById('download');
 
 function download(fullpath, filename) {
   fetch(fullpath)
-    .then(function (response) {
-      return response.blob();
-    })
+    .then((response) => response.blob())
     .then(function (blob) {
       link.href = URL.createObjectURL(blob);
       link.download = filename;

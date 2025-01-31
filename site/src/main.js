@@ -1,7 +1,7 @@
-import FullScreen from '../../src/ol/control/FullScreen.js';
+import {apply} from 'ol-mapbox-style';
 import Map from '../../src/ol/Map.js';
 import View from '../../src/ol/View.js';
-import {apply} from 'ol-mapbox-style';
+import FullScreen from '../../src/ol/control/FullScreen.js';
 
 const locations = [
   {
@@ -85,7 +85,7 @@ map.addControl(new FullScreen());
 
 apply(
   map,
-  'https://api.maptiler.com/maps/topo/style.json?key=get_your_own_D6rA4zTHduk6KOKTXzGB'
+  'https://api.maptiler.com/maps/outdoor-v2/style.json?key=get_your_own_D6rA4zTHduk6KOKTXzGB',
 );
 
 container.onmouseover = function () {

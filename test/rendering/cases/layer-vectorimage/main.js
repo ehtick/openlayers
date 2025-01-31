@@ -1,13 +1,13 @@
-import Circle from '../../../../src/ol/geom/Circle.js';
 import Feature from '../../../../src/ol/Feature.js';
-import LineString from '../../../../src/ol/geom/LineString.js';
 import Map from '../../../../src/ol/Map.js';
+import View from '../../../../src/ol/View.js';
+import Circle from '../../../../src/ol/geom/Circle.js';
+import LineString from '../../../../src/ol/geom/LineString.js';
 import Polygon from '../../../../src/ol/geom/Polygon.js';
-import Stroke from '../../../../src/ol/style/Stroke.js';
-import Style from '../../../../src/ol/style/Style.js';
 import VectorImageLayer from '../../../../src/ol/layer/VectorImage.js';
 import VectorSource from '../../../../src/ol/source/Vector.js';
-import View from '../../../../src/ol/View.js';
+import Stroke from '../../../../src/ol/style/Stroke.js';
+import Style from '../../../../src/ol/style/Style.js';
 
 const center = [1825927.7316762917, 6143091.089223046];
 
@@ -42,8 +42,8 @@ function addPolygon(r, source) {
           [center[0] - r, center[1] + r],
           [center[0] - r, center[1] - r],
         ],
-      ])
-    )
+      ]),
+    ),
   );
 }
 
@@ -51,13 +51,13 @@ const smallLine = new Feature(
   new LineString([
     [center[0], center[1] - 1],
     [center[0], center[1] + 1],
-  ])
+  ]),
 );
 smallLine.setStyle(
   new Style({
     zIndex: -99,
     stroke: new Stroke({width: 75, color: 'red'}),
-  })
+  }),
 );
 smallLine.getGeometry().translate(-1000, 1000);
 source1.addFeature(smallLine);
@@ -72,7 +72,7 @@ const smallLine2 = new Feature(
   new LineString([
     [center[0], center[1] - 1000],
     [center[0], center[1] + 1000],
-  ])
+  ]),
 );
 smallLine2.setStyle([
   new Style({
@@ -89,7 +89,7 @@ const smallLine3 = new Feature(
   new LineString([
     [center[0], center[1] - 1],
     [center[0], center[1] + 1],
-  ])
+  ]),
 );
 smallLine3.setStyle([
   new Style({

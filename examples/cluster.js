@@ -1,17 +1,18 @@
 import Feature from '../src/ol/Feature.js';
 import Map from '../src/ol/Map.js';
-import Point from '../src/ol/geom/Point.js';
 import View from '../src/ol/View.js';
-import {
-  Circle as CircleStyle,
-  Fill,
-  Stroke,
-  Style,
-  Text,
-} from '../src/ol/style.js';
-import {Cluster, OSM, Vector as VectorSource} from '../src/ol/source.js';
-import {Tile as TileLayer, Vector as VectorLayer} from '../src/ol/layer.js';
 import {boundingExtent} from '../src/ol/extent.js';
+import Point from '../src/ol/geom/Point.js';
+import TileLayer from '../src/ol/layer/Tile.js';
+import VectorLayer from '../src/ol/layer/Vector.js';
+import Cluster from '../src/ol/source/Cluster.js';
+import OSM from '../src/ol/source/OSM.js';
+import VectorSource from '../src/ol/source/Vector.js';
+import CircleStyle from '../src/ol/style/Circle.js';
+import Fill from '../src/ol/style/Fill.js';
+import Stroke from '../src/ol/style/Stroke.js';
+import Style from '../src/ol/style/Style.js';
+import Text from '../src/ol/style/Text.js';
 
 const distanceInput = document.getElementById('distance');
 const minDistanceInput = document.getElementById('min-distance');
@@ -92,7 +93,7 @@ map.on('click', (e) => {
       const features = clickedFeatures[0].get('features');
       if (features.length > 1) {
         const extent = boundingExtent(
-          features.map((r) => r.getGeometry().getCoordinates())
+          features.map((r) => r.getGeometry().getCoordinates()),
         );
         map.getView().fit(extent, {duration: 1000, padding: [50, 50, 50, 50]});
       }

@@ -1,14 +1,15 @@
-import Map from '../../../../../src/ol/Map.js';
-import Projection from '../../../../../src/ol/proj/Projection.js';
-import ScaleLine from '../../../../../src/ol/control/ScaleLine.js';
-import View from '../../../../../src/ol/View.js';
 import proj4 from 'proj4';
+import {spy as sinonSpy} from 'sinon';
+import Map from '../../../../../src/ol/Map.js';
+import View from '../../../../../src/ol/View.js';
+import ScaleLine from '../../../../../src/ol/control/ScaleLine.js';
+import Projection from '../../../../../src/ol/proj/Projection.js';
+import {register} from '../../../../../src/ol/proj/proj4.js';
 import {
   addCommon,
   clearAllProjections,
   fromLonLat,
 } from '../../../../../src/ol/proj.js';
-import {register} from '../../../../../src/ol/proj/proj4.js';
 
 describe('ol.control.ScaleLine', function () {
   let map;
@@ -100,7 +101,7 @@ describe('ol.control.ScaleLine', function () {
 
   describe('synchronisation with map view', function () {
     it('calls `render` as soon as the map is rendered', function (done) {
-      const renderSpy = sinon.spy();
+      const renderSpy = sinonSpy();
       const ctrl = new ScaleLine({
         render: renderSpy,
       });
@@ -111,7 +112,7 @@ describe('ol.control.ScaleLine', function () {
         new View({
           center: [0, 0],
           zoom: 0,
-        })
+        }),
       );
       expect(renderSpy.called).to.be(false);
       map.once('postrender', function () {
@@ -121,7 +122,7 @@ describe('ol.control.ScaleLine', function () {
       });
     });
     it('calls `render` as often as the map is rendered', function () {
-      const renderSpy = sinon.spy();
+      const renderSpy = sinonSpy();
       const ctrl = new ScaleLine({
         render: renderSpy,
       });
@@ -130,7 +131,7 @@ describe('ol.control.ScaleLine', function () {
         new View({
           center: [0, 0],
           zoom: 0,
-        })
+        }),
       );
       map.renderSync();
       expect(renderSpy.callCount).to.be(1);
@@ -140,7 +141,7 @@ describe('ol.control.ScaleLine', function () {
       expect(renderSpy.callCount).to.be(3);
     });
     it('calls `render` as when the view changes', function (done) {
-      const renderSpy = sinon.spy();
+      const renderSpy = sinonSpy();
       const ctrl = new ScaleLine({
         render: renderSpy,
       });
@@ -149,7 +150,7 @@ describe('ol.control.ScaleLine', function () {
         new View({
           center: [0, 0],
           zoom: 0,
-        })
+        }),
       );
       map.renderSync();
       map.once('postrender', function () {
@@ -170,7 +171,7 @@ describe('ol.control.ScaleLine', function () {
           center: [0, 0],
           multiWorld: true,
           zoom: 0,
-        })
+        }),
       );
       map.renderSync();
       expect(ctrl.element.innerText).to.be('10000 km');
@@ -203,7 +204,7 @@ describe('ol.control.ScaleLine', function () {
           center: [0, 0],
           multiWorld: true,
           zoom: 0,
-        })
+        }),
       );
       ctrl.setMap(map);
 
@@ -230,7 +231,7 @@ describe('ol.control.ScaleLine', function () {
         new View({
           center: [0, 0],
           zoom: 0,
-        })
+        }),
       );
       map.once('postrender', function () {
         metricHtml = ctrl.element.innerHTML;
@@ -286,7 +287,7 @@ describe('ol.control.ScaleLine', function () {
           'PARAMETER["scale_factor",0.999966666667],' +
           'PARAMETER["central_meridian",-85.66666666666670],' +
           'PARAMETER["latitude_of_origin",37.50000000000000],' +
-          'UNIT["Foot_US",0.30480060960122]]'
+          'UNIT["Foot_US",0.30480060960122]]',
       );
       register(proj4);
     });
@@ -304,7 +305,7 @@ describe('ol.control.ScaleLine', function () {
           center: fromLonLat([7, 52]),
           zoom: 2,
           projection: 'EPSG:3857',
-        })
+        }),
       );
       map.renderSync();
       expect(ctrl.element.innerText).to.be('2000 km');
@@ -314,7 +315,7 @@ describe('ol.control.ScaleLine', function () {
           multiWorld: true,
           zoom: 2,
           projection: 'EPSG:4326',
-        })
+        }),
       );
       map.renderSync();
       expect(ctrl.element.innerText).to.be('5000 km');
@@ -323,7 +324,7 @@ describe('ol.control.ScaleLine', function () {
           center: fromLonLat([-85.685, 39.891], 'Indiana-East'),
           zoom: 7,
           projection: 'Indiana-East',
-        })
+        }),
       );
       map.renderSync();
       expect(ctrl.element.innerText).to.be('100 km');
@@ -337,7 +338,7 @@ describe('ol.control.ScaleLine', function () {
           center: fromLonLat([-85.685, 39.891], 'Indiana-East'),
           zoom: 7,
           projection: 'Indiana-East',
-        })
+        }),
       );
       map.renderSync();
       // without maxWidth set this would be 100 km
@@ -352,7 +353,7 @@ describe('ol.control.ScaleLine', function () {
           center: fromLonLat([-85.685, 39.891]),
           zoom: 7,
           projection: 'EPSG:3857',
-        })
+        }),
       );
       map.renderSync();
       expect(ctrl.element.innerText).to.be('100 km');
@@ -361,7 +362,7 @@ describe('ol.control.ScaleLine', function () {
           center: [-85.685, 39.891],
           zoom: 7,
           projection: 'EPSG:4326',
-        })
+        }),
       );
       map.renderSync();
       expect(ctrl.element.innerText).to.be('100 km');
@@ -370,7 +371,7 @@ describe('ol.control.ScaleLine', function () {
           center: fromLonLat([-85.685, 39.891], 'Indiana-East'),
           zoom: 7,
           projection: 'Indiana-East',
-        })
+        }),
       );
       map.renderSync();
       expect(ctrl.element.innerText).to.be('100 km');
@@ -391,7 +392,7 @@ describe('ol.control.ScaleLine', function () {
               return r;
             },
           }),
-        })
+        }),
       );
       map.renderSync();
 
@@ -420,7 +421,7 @@ describe('ol.control.ScaleLine', function () {
               return r;
             },
           }),
-        })
+        }),
       );
       map.renderSync();
 
@@ -446,7 +447,7 @@ describe('ol.control.ScaleLine', function () {
           multiWorld: true,
           zoom: 0 /* min zoom */,
           projection: 'EPSG:4326',
-        })
+        }),
       );
       map.renderSync();
       expect(ctrl.element.innerText).to.be('10000 km');
@@ -465,7 +466,7 @@ describe('ol.control.ScaleLine', function () {
           center: [7, 0],
           zoom: 2,
           projection: 'EPSG:4326',
-        })
+        }),
       );
       map.renderSync();
       const innerHtml0 = ctrl.element.innerHTML;
@@ -486,7 +487,7 @@ describe('ol.control.ScaleLine', function () {
           zoom: 2,
           projection: 'EPSG:4326',
           multiWorld: true,
-        })
+        }),
       );
       map.renderSync();
       const innerHtml0 = ctrl.element.innerHTML;
@@ -504,25 +505,29 @@ describe('ol.control.ScaleLine', function () {
     let mapView;
 
     const getMetricUnit = function (zoom) {
+      if (zoom > 40) {
+        return 'nm';
+      }
       if (zoom > 30) {
         return 'μm';
-      } else if (zoom > 20) {
-        return 'mm';
-      } else if (zoom > 10) {
-        return 'm';
-      } else {
-        return 'km';
       }
+      if (zoom > 20) {
+        return 'mm';
+      }
+      if (zoom > 10) {
+        return 'm';
+      }
+      return 'km';
     };
 
     const getImperialUnit = function (zoom) {
       if (zoom >= 21) {
         return 'in';
-      } else if (zoom >= 10) {
-        return 'ft';
-      } else {
-        return 'mi';
       }
+      if (zoom >= 10) {
+        return 'ft';
+      }
+      return 'mi';
     };
 
     beforeEach(function () {
@@ -538,7 +543,7 @@ describe('ol.control.ScaleLine', function () {
           zoom: currentZoom,
           maxZoom: currentZoom,
           multiWorld: true,
-        })
+        }),
       );
       mapView = map.getView();
       map.renderSync();
@@ -628,7 +633,7 @@ describe('ol.control.ScaleLine', function () {
           center: [0, 0],
           zoom: 2,
           multiWorld: true,
-        })
+        }),
       );
       map.renderSync();
       const element = document.querySelector('.ol-scale-text');
@@ -649,7 +654,7 @@ describe('ol.control.ScaleLine', function () {
           center: fromLonLat([0, 60]),
           zoom: 2,
           multiWorld: true,
-        })
+        }),
       );
       map.renderSync();
       const element = document.querySelector('.ol-scale-text');
@@ -671,7 +676,7 @@ describe('ol.control.ScaleLine', function () {
           zoom: 2,
           multiWorld: true,
           projection: 'EPSG:4326',
-        })
+        }),
       );
       map.renderSync();
       const element = document.querySelector('.ol-scale-text');
@@ -693,7 +698,7 @@ describe('ol.control.ScaleLine', function () {
           zoom: 2,
           multiWorld: true,
           projection: 'EPSG:4326',
-        })
+        }),
       );
       map.renderSync();
       const element = document.querySelector('.ol-scale-text');

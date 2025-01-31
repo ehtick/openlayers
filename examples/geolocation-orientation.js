@@ -1,11 +1,11 @@
 import Geolocation from '../src/ol/Geolocation.js';
-import LineString from '../src/ol/geom/LineString.js';
 import Map from '../src/ol/Map.js';
-import OSM from '../src/ol/source/OSM.js';
 import Overlay from '../src/ol/Overlay.js';
-import TileLayer from '../src/ol/layer/Tile.js';
 import View from '../src/ol/View.js';
+import LineString from '../src/ol/geom/LineString.js';
+import TileLayer from '../src/ol/layer/Tile.js';
 import {fromLonLat} from '../src/ol/proj.js';
+import OSM from '../src/ol/source/OSM.js';
 
 // creating the view
 const view = new View({
@@ -163,7 +163,7 @@ geolocateBtn.addEventListener(
 
     disableButtons();
   },
-  false
+  false,
 );
 
 // simulate device move
@@ -196,10 +196,13 @@ simulateBtn.addEventListener(
       }
       const newDate = position.timestamp;
       simulatePositionChange(position);
-      window.setTimeout(function () {
-        prevDate = newDate;
-        geolocate();
-      }, (newDate - prevDate) / 0.5);
+      window.setTimeout(
+        function () {
+          prevDate = newDate;
+          geolocate();
+        },
+        (newDate - prevDate) / 0.5,
+      );
     }
     geolocate();
 
@@ -208,7 +211,7 @@ simulateBtn.addEventListener(
 
     disableButtons();
   },
-  false
+  false,
 );
 
 function simulatePositionChange(position) {

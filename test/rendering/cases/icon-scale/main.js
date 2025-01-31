@@ -1,11 +1,11 @@
 import Feature from '../../../../src/ol/Feature.js';
-import Icon from '../../../../src/ol/style/Icon.js';
 import Map from '../../../../src/ol/Map.js';
+import View from '../../../../src/ol/View.js';
 import Point from '../../../../src/ol/geom/Point.js';
-import Style from '../../../../src/ol/style/Style.js';
 import VectorLayer from '../../../../src/ol/layer/Vector.js';
 import VectorSource from '../../../../src/ol/source/Vector.js';
-import View from '../../../../src/ol/View.js';
+import Icon from '../../../../src/ol/style/Icon.js';
+import Style from '../../../../src/ol/style/Style.js';
 
 const features = [
   new Feature({
@@ -89,7 +89,7 @@ for (let i = 0; i < 2; ++i) {
       scale: [1, 1.5],
       anchor: [0.5, 1],
       rotated: i,
-    })
+    }),
   );
 }
 

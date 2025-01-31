@@ -1,14 +1,14 @@
 import Feature from '../../../../src/ol/Feature.js';
 import Map from '../../../../src/ol/Map.js';
-import Point from '../../../../src/ol/geom/Point.js';
 import View from '../../../../src/ol/View.js';
-import {Icon, Style} from '../../../../src/ol/style.js';
+import Point from '../../../../src/ol/geom/Point.js';
 import {
   Tile as TileLayer,
   Vector as VectorLayer,
 } from '../../../../src/ol/layer.js';
-import {Vector as VectorSource, XYZ} from '../../../../src/ol/source.js';
 import {fromLonLat} from '../../../../src/ol/proj.js';
+import {Vector as VectorSource, XYZ} from '../../../../src/ol/source.js';
+import {Icon, Style} from '../../../../src/ol/style.js';
 
 const center = fromLonLat([8, 50]);
 
@@ -25,7 +25,7 @@ feature.setStyle(
       src: '/data/me0.svg',
       scale: 2,
     }),
-  })
+  }),
 );
 vectorSource.addFeature(feature);
 
@@ -40,7 +40,7 @@ feature.setStyle(
       offset: [16, 0],
       scale: 2,
     }),
-  })
+  }),
 );
 vectorSource.addFeature(feature);
 
@@ -56,7 +56,7 @@ feature.setStyle(
       offset: [16, 0],
       size: [64, 40],
     }),
-  })
+  }),
 );
 vectorSource.addFeature(feature);
 

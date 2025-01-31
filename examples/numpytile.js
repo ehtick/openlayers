@@ -1,8 +1,8 @@
-import DataTileSource from '../src/ol/source/DataTile.js';
 import Map from '../src/ol/Map.js';
-import TileLayer from '../src/ol/layer/WebGLTile.js';
 import View from '../src/ol/View.js';
+import TileLayer from '../src/ol/layer/WebGLTile.js';
 import {fromLonLat} from '../src/ol/proj.js';
+import DataTileSource from '../src/ol/source/DataTile.js';
 
 // 16-bit COG
 // Which will be served as NumpyTiles.
@@ -11,7 +11,7 @@ const COG =
 
 function numpyTileLoader(z, x, y) {
   const url = `https://api.cogeo.xyz/cog/tiles/WebMercatorQuad/${z}/${x}/${y}@1x?format=npy&url=${encodeURIComponent(
-    COG
+    COG,
   )}`;
 
   return fetch(url)

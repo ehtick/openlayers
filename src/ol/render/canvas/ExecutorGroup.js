@@ -2,22 +2,43 @@
  * @module ol/render/canvas/ExecutorGroup
  */
 
-import Executor from './Executor.js';
+import {ascending, descending} from '../../array.js';
+import {createCanvasContext2D} from '../../dom.js';
 import {buffer, createEmpty, extendCoordinate} from '../../extent.js';
+import {transform2D} from '../../geom/flat/transform.js';
+import {isEmpty} from '../../obj.js';
 import {
   compose as composeTransform,
   create as createTransform,
 } from '../../transform.js';
-import {createCanvasContext2D} from '../../dom.js';
-import {isEmpty} from '../../obj.js';
-import {numberSafeCompareFunction} from '../../array.js';
-import {transform2D} from '../../geom/flat/transform.js';
+import Executor from './Executor.js';
 
 /**
  * @const
  * @type {Array<import("../canvas.js").BuilderType>}
  */
-const ORDER = ['Polygon', 'Circle', 'LineString', 'Image', 'Text', 'Default'];
+export const ALL = [
+  'Polygon',
+  'Circle',
+  'LineString',
+  'Image',
+  'Text',
+  'Default',
+];
+
+/**
+ * @const
+ * @type {Array<import("../canvas.js").BuilderType>}
+ */
+export const DECLUTTER = ['Image', 'Text'];
+
+/**
+ * @const
+ * @type {Array<import("../canvas.js").BuilderType>}
+ */
+export const NON_DECLUTTER = ALL.filter(
+  (builderType) => !DECLUTTER.includes(builderType),
+);
 
 class ExecutorGroup {
   /**
@@ -31,6 +52,7 @@ class ExecutorGroup {
    * @param {!Object<string, !Object<import("../canvas.js").BuilderType, import("../canvas.js").SerializableInstructions>>} allInstructions
    * The serializable instructions.
    * @param {number} [renderBuffer] Optional rendering buffer.
+   * @param {boolean} [deferredRendering] Enable deferred rendering with renderDeferred().
    */
   constructor(
     maxExtent,
@@ -38,7 +60,8 @@ class ExecutorGroup {
     pixelRatio,
     overlaps,
     allInstructions,
-    renderBuffer
+    renderBuffer,
+    deferredRendering,
   ) {
     /**
      * @private
@@ -72,7 +95,7 @@ class ExecutorGroup {
 
     /**
      * @private
-     * @type {!Object<string, !Object<import("../canvas.js").BuilderType, import("./Executor").default>>}
+     * @type {!Object<string, !Object<string, import("./Executor").default>>}
      */
     this.executorsByZIndex_ = {};
 
@@ -88,7 +111,19 @@ class ExecutorGroup {
      */
     this.hitDetectionTransform_ = createTransform();
 
-    this.createExecutors_(allInstructions);
+    /**
+     * @private
+     * @type {CanvasRenderingContext2D}
+     */
+    this.renderedContext_ = null;
+
+    /**
+     * @private
+     * @type {Object<number, Array<import("./ZIndexContext.js").default>>}
+     */
+    this.deferredZIndexContexts_ = {};
+
+    this.createExecutors_(allInstructions, deferredRendering);
   }
 
   /**
@@ -108,9 +143,10 @@ class ExecutorGroup {
   /**
    * Create executors and populate them using the provided instructions.
    * @private
-   * @param {!Object<string, !Object<import("../canvas.js").BuilderType, import("../canvas.js").SerializableInstructions>>} allInstructions The serializable instructions
+   * @param {!Object<string, !Object<string, import("../canvas.js").SerializableInstructions>>} allInstructions The serializable instructions
+   * @param {boolean} deferredRendering Enable deferred rendering.
    */
-  createExecutors_(allInstructions) {
+  createExecutors_(allInstructions, deferredRendering) {
     for (const zIndex in allInstructions) {
       let executors = this.executorsByZIndex_[zIndex];
       if (executors === undefined) {
@@ -124,7 +160,8 @@ class ExecutorGroup {
           this.resolution_,
           this.pixelRatio_,
           this.overlaps_,
-          instructions
+          instructions,
+          deferredRendering,
         );
       }
     }
@@ -162,7 +199,7 @@ class ExecutorGroup {
     rotation,
     hitTolerance,
     callback,
-    declutteredFeatures
+    declutteredFeatures,
   ) {
     hitTolerance = Math.round(hitTolerance);
     const contextSize = hitTolerance * 2 + 1;
@@ -174,14 +211,16 @@ class ExecutorGroup {
       -1 / resolution,
       -rotation,
       -coordinate[0],
-      -coordinate[1]
+      -coordinate[1],
     );
 
     const newContext = !this.hitDetectionContext_;
     if (newContext) {
       this.hitDetectionContext_ = createCanvasContext2D(
         contextSize,
-        contextSize
+        contextSize,
+        undefined,
+        {willReadFrequently: true},
       );
     }
     const context = this.hitDetectionContext_;
@@ -196,9 +235,7 @@ class ExecutorGroup {
       context.clearRect(0, 0, contextSize, contextSize);
     }
 
-    /**
-     * @type {import("../../extent.js").Extent}
-     */
+    /** @type {import("../../extent.js").Extent|undefined} */
     let hitExtent;
     if (this.renderBuffer_ !== undefined) {
       hitExtent = createEmpty();
@@ -206,30 +243,33 @@ class ExecutorGroup {
       buffer(
         hitExtent,
         resolution * (this.renderBuffer_ + hitTolerance),
-        hitExtent
+        hitExtent,
       );
     }
 
     const indexes = getPixelIndexArray(hitTolerance);
 
+    /** @type {import("../canvas.js").BuilderType} */
     let builderType;
 
     /**
      * @param {import("../../Feature.js").FeatureLike} feature Feature.
      * @param {import("../../geom/SimpleGeometry.js").default} geometry Geometry.
+     * @param {import('../../style/Style.js').DeclutterMode} declutterMode Declutter mode.
      * @return {T|undefined} Callback result.
      */
-    function featureCallback(feature, geometry) {
+    function featureCallback(feature, geometry, declutterMode) {
       const imageData = context.getImageData(
         0,
         0,
         contextSize,
-        contextSize
+        contextSize,
       ).data;
       for (let i = 0, ii = indexes.length; i < ii; i++) {
         if (imageData[indexes[i]] > 0) {
           if (
             !declutteredFeatures ||
+            declutterMode === 'none' ||
             (builderType !== 'Image' && builderType !== 'Text') ||
             declutteredFeatures.includes(feature)
           ) {
@@ -250,14 +290,14 @@ class ExecutorGroup {
 
     /** @type {Array<number>} */
     const zs = Object.keys(this.executorsByZIndex_).map(Number);
-    zs.sort(numberSafeCompareFunction);
+    zs.sort(ascending);
 
     let i, j, executors, executor, result;
     for (i = zs.length - 1; i >= 0; --i) {
       const zIndexKey = zs[i].toString();
       executors = this.executorsByZIndex_[zIndexKey];
-      for (j = ORDER.length - 1; j >= 0; --j) {
-        builderType = ORDER[j];
+      for (j = ALL.length - 1; j >= 0; --j) {
+        builderType = ALL[j];
         executor = executors[builderType];
         if (executor !== undefined) {
           result = executor.executeHitDetection(
@@ -265,7 +305,7 @@ class ExecutorGroup {
             transform,
             rotation,
             featureCallback,
-            hitExtent
+            hitExtent,
           );
           if (result) {
             return result;
@@ -302,61 +342,112 @@ class ExecutorGroup {
   }
 
   /**
-   * @param {CanvasRenderingContext2D} context Context.
-   * @param {number} contextScale Scale of the context.
+   * @param {CanvasRenderingContext2D} targetContext Context.
+   * @param {import('../../size.js').Size} scaledCanvasSize Scale of the context.
    * @param {import("../../transform.js").Transform} transform Transform.
    * @param {number} viewRotation View rotation.
    * @param {boolean} snapToPixel Snap point symbols and test to integer pixel.
    * @param {Array<import("../canvas.js").BuilderType>} [builderTypes] Ordered replay types to replay.
-   *     Default is {@link module:ol/render/replay~ORDER}
-   * @param {import("rbush").default} [declutterTree] Declutter tree.
+   *     Default is {@link module:ol/render/replay~ALL}
+   * @param {import("rbush").default<import('./Executor.js').DeclutterEntry>|null} [declutterTree] Declutter tree.
+   *     When set to null, no decluttering is done, even when the executor group has a `ZIndexContext`.
    */
   execute(
-    context,
-    contextScale,
+    targetContext,
+    scaledCanvasSize,
     transform,
     viewRotation,
     snapToPixel,
     builderTypes,
-    declutterTree
+    declutterTree,
   ) {
-    /** @type {Array<number>} */
     const zs = Object.keys(this.executorsByZIndex_).map(Number);
-    zs.sort(numberSafeCompareFunction);
+    zs.sort(declutterTree ? descending : ascending);
 
-    // setup clipping so that the parts of over-simplified geometries are not
-    // visible outside the current extent when panning
-    if (this.maxExtent_) {
-      context.save();
-      this.clip(context, transform);
-    }
-
-    builderTypes = builderTypes ? builderTypes : ORDER;
-    let i, ii, j, jj, replays, replay;
-    if (declutterTree) {
-      zs.reverse();
-    }
-    for (i = 0, ii = zs.length; i < ii; ++i) {
+    builderTypes = builderTypes ? builderTypes : ALL;
+    const maxBuilderTypes = ALL.length;
+    for (let i = 0, ii = zs.length; i < ii; ++i) {
       const zIndexKey = zs[i].toString();
-      replays = this.executorsByZIndex_[zIndexKey];
-      for (j = 0, jj = builderTypes.length; j < jj; ++j) {
+      const replays = this.executorsByZIndex_[zIndexKey];
+      for (let j = 0, jj = builderTypes.length; j < jj; ++j) {
         const builderType = builderTypes[j];
-        replay = replays[builderType];
+        const replay = replays[builderType];
         if (replay !== undefined) {
-          replay.execute(
-            context,
-            contextScale,
-            transform,
-            viewRotation,
-            snapToPixel,
-            declutterTree
-          );
+          const zIndexContext =
+            declutterTree === null ? undefined : replay.getZIndexContext();
+          const context = zIndexContext
+            ? zIndexContext.getContext()
+            : targetContext;
+          const requireClip =
+            this.maxExtent_ &&
+            builderType !== 'Image' &&
+            builderType !== 'Text';
+          if (requireClip) {
+            context.save();
+            // setup clipping so that the parts of over-simplified geometries are not
+            // visible outside the current extent when panning
+            this.clip(context, transform);
+          }
+          if (
+            !zIndexContext ||
+            builderType === 'Text' ||
+            builderType === 'Image'
+          ) {
+            replay.execute(
+              context,
+              scaledCanvasSize,
+              transform,
+              viewRotation,
+              snapToPixel,
+              declutterTree,
+            );
+          } else {
+            zIndexContext.pushFunction((context) =>
+              replay.execute(
+                context,
+                scaledCanvasSize,
+                transform,
+                viewRotation,
+                snapToPixel,
+                declutterTree,
+              ),
+            );
+          }
+          if (requireClip) {
+            context.restore();
+          }
+          if (zIndexContext) {
+            zIndexContext.offset();
+            const index = zs[i] * maxBuilderTypes + j;
+            if (!this.deferredZIndexContexts_[index]) {
+              this.deferredZIndexContexts_[index] = [];
+            }
+            this.deferredZIndexContexts_[index].push(zIndexContext);
+          }
         }
       }
     }
 
-    if (this.maxExtent_) {
-      context.restore();
+    this.renderedContext_ = targetContext;
+  }
+
+  getDeferredZIndexContexts() {
+    return this.deferredZIndexContexts_;
+  }
+
+  getRenderedContext() {
+    return this.renderedContext_;
+  }
+
+  renderDeferred() {
+    const deferredZIndexContexts = this.deferredZIndexContexts_;
+    const zs = Object.keys(deferredZIndexContexts).map(Number).sort(ascending);
+    for (let i = 0, ii = zs.length; i < ii; ++i) {
+      deferredZIndexContexts[zs[i]].forEach((zIndexContext) => {
+        zIndexContext.draw(this.renderedContext_); // FIXME Pass clip to replay for temporarily enabling clip
+        zIndexContext.clear();
+      });
+      deferredZIndexContexts[zs[i]].length = 0;
     }
   }
 }

@@ -14,9 +14,8 @@ import {toRadians} from './math.js';
 export function disable(rotation) {
   if (rotation !== undefined) {
     return 0;
-  } else {
-    return undefined;
   }
+  return undefined;
 }
 
 /**
@@ -26,9 +25,8 @@ export function disable(rotation) {
 export function none(rotation) {
   if (rotation !== undefined) {
     return rotation;
-  } else {
-    return undefined;
   }
+  return undefined;
 }
 
 /**
@@ -51,9 +49,8 @@ export function createSnapToN(n) {
       if (rotation !== undefined) {
         rotation = Math.floor(rotation / theta + 0.5) * theta;
         return rotation;
-      } else {
-        return undefined;
       }
+      return undefined;
     }
   );
 }
@@ -63,7 +60,7 @@ export function createSnapToN(n) {
  * @return {Type} Rotation constraint.
  */
 export function createSnapToZero(tolerance) {
-  tolerance = tolerance || toRadians(5);
+  const t = tolerance === undefined ? toRadians(5) : tolerance;
   return (
     /**
      * @param {number|undefined} rotation Rotation.
@@ -71,19 +68,14 @@ export function createSnapToZero(tolerance) {
      * @return {number|undefined} Rotation.
      */
     function (rotation, isMoving) {
-      if (isMoving) {
+      if (isMoving || rotation === undefined) {
         return rotation;
       }
 
-      if (rotation !== undefined) {
-        if (Math.abs(rotation) <= tolerance) {
-          return 0;
-        } else {
-          return rotation;
-        }
-      } else {
-        return undefined;
+      if (Math.abs(rotation) <= t) {
+        return 0;
       }
+      return rotation;
     }
   );
 }

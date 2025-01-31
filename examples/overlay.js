@@ -1,10 +1,10 @@
 import Map from '../src/ol/Map.js';
-import OSM from '../src/ol/source/OSM.js';
 import Overlay from '../src/ol/Overlay.js';
-import TileLayer from '../src/ol/layer/Tile.js';
 import View from '../src/ol/View.js';
-import {fromLonLat, toLonLat} from '../src/ol/proj.js';
 import {toStringHDMS} from '../src/ol/coordinate.js';
+import TileLayer from '../src/ol/layer/Tile.js';
+import {fromLonLat, toLonLat} from '../src/ol/proj.js';
+import OSM from '../src/ol/source/OSM.js';
 
 const layer = new TileLayer({
   source: new OSM(),
@@ -43,19 +43,22 @@ const vienna = new Overlay({
 });
 map.addOverlay(vienna);
 
+const element = popup.getElement();
 map.on('click', function (evt) {
-  const element = popup.getElement();
   const coordinate = evt.coordinate;
   const hdms = toStringHDMS(toLonLat(coordinate));
-
-  $(element).popover('dispose');
   popup.setPosition(coordinate);
-  $(element).popover({
-    container: element,
-    placement: 'top',
+  let popover = bootstrap.Popover.getInstance(element);
+  if (popover) {
+    popover.dispose();
+  }
+  popover = new bootstrap.Popover(element, {
     animation: false,
-    html: true,
+    container: element,
     content: '<p>The location you clicked was:</p><code>' + hdms + '</code>',
+    html: true,
+    placement: 'top',
+    title: 'Welcome to OpenLayers',
   });
-  $(element).popover('show');
+  popover.show();
 });

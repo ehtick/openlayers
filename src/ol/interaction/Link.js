@@ -1,11 +1,11 @@
 /**
  * @module ol/interaction/Link
  */
-import EventType from '../events/EventType.js';
-import Interaction from './Interaction.js';
 import MapEventType from '../MapEventType.js';
+import EventType from '../events/EventType.js';
 import {listen, unlistenByKey} from '../events.js';
 import {toFixed} from '../math.js';
+import Interaction from './Interaction.js';
 
 /**
  * @param {number} number A number.
@@ -52,9 +52,17 @@ function differentArray(a, b) {
   return differentNumber(a[0], b[0]) || differentNumber(a[1], b[1]);
 }
 
+/** @typedef {'x'|'y'|'z'|'r'|'l'} Params */
+
+/**
+ * @typedef {function(string):void} Callback
+ */
+
 /**
  * @typedef {Object} Options
  * @property {boolean|import('../View.js').AnimationOptions} [animate=true] Animate view transitions.
+ * @property {Array<Params>} [params=['x', 'y', 'z', 'r', 'l']] Properties to track. Default is to track
+ * `x` (center x), `y` (center y), `z` (zoom), `r` (rotation) and `l` (layers).
  * @property {boolean} [replace=false] Replace the current URL without creating the new entry in browser history.
  * By default, changes in the map state result in a new entry being added to the browser history.
  * @property {string} [prefix=''] By default, the URL will be updated with search parameters x, y, z, and r.  To
@@ -76,8 +84,13 @@ class Link extends Interaction {
     super();
 
     options = Object.assign(
-      {animate: true, replace: false, prefix: ''},
-      options || {}
+      {
+        animate: true,
+        params: ['x', 'y', 'z', 'r', 'l'],
+        replace: false,
+        prefix: '',
+      },
+      options || {},
     );
 
     let animationOptions;
@@ -94,6 +107,15 @@ class Link extends Interaction {
      * @private
      */
     this.animationOptions_ = animationOptions;
+
+    /**
+     * @type {Object<Params, boolean>}
+     * @private
+     */
+    this.params_ = options.params.reduce((acc, value) => {
+      acc[value] = true;
+      return acc;
+    }, {});
 
     /**
      * @private
@@ -119,7 +141,24 @@ class Link extends Interaction {
      */
     this.initial_ = true;
 
+    /**
+     * @private
+     */
     this.updateState_ = this.updateState_.bind(this);
+
+    /**
+     * The tracked parameter callbacks.
+     * @private
+     * @type {Object<string, Callback>}
+     */
+    this.trackedCallbacks_ = {};
+
+    /**
+     * The tracked parameter values.
+     * @private
+     * @type {Object<string, string|null>}
+     */
+    this.trackedValues_ = {};
   }
 
   /**
@@ -151,6 +190,9 @@ class Link extends Interaction {
    * @param {string} value The param value.
    */
   set_(params, name, value) {
+    if (!(name in this.params_)) {
+      return;
+    }
     params.set(this.getParamName_(name), value);
   }
 
@@ -160,11 +202,15 @@ class Link extends Interaction {
    * @param {string} name The unprefixed parameter name.
    */
   delete_(params, name) {
+    if (!(name in this.params_)) {
+      return;
+    }
     params.delete(this.getParamName_(name));
   }
 
   /**
    * @param {import("../Map.js").default|null} map Map.
+   * @override
    */
   setMap(map) {
     const oldMap = this.getMap();
@@ -190,7 +236,7 @@ class Link extends Interaction {
     this.listenerKeys_.push(
       listen(map, MapEventType.MOVEEND, this.updateUrl_, this),
       listen(map.getLayerGroup(), EventType.CHANGE, this.updateUrl_, this),
-      listen(map, 'change:layergroup', this.handleChangeLayerGroup_, this)
+      listen(map, 'change:layergroup', this.handleChangeLayerGroup_, this),
     );
 
     if (!this.replace_) {
@@ -240,6 +286,16 @@ class Link extends Interaction {
    * @private
    */
   updateState_() {
+    const url = new URL(window.location.href);
+    const params = url.searchParams;
+    for (const key in this.trackedCallbacks_) {
+      const value = params.get(key);
+      if (key in this.trackedCallbacks_ && value !== this.trackedValues_[key]) {
+        this.trackedValues_[key] = value;
+        this.trackedCallbacks_[key](value);
+      }
+    }
+
     const map = this.getMap();
     if (!map) {
       return;
@@ -248,8 +304,6 @@ class Link extends Interaction {
     if (!view) {
       return;
     }
-    const url = new URL(window.location.href);
-    const params = url.searchParams;
 
     let updateView = false;
 
@@ -259,13 +313,13 @@ class Link extends Interaction {
     const viewProperties = {};
 
     const zoom = readNumber(this.get_(params, 'z'));
-    if (differentNumber(zoom, view.getZoom())) {
+    if ('z' in this.params_ && differentNumber(zoom, view.getZoom())) {
       updateView = true;
       viewProperties.zoom = zoom;
     }
 
     const rotation = readNumber(this.get_(params, 'r'));
-    if (differentNumber(rotation, view.getRotation())) {
+    if ('r' in this.params_ && differentNumber(rotation, view.getRotation())) {
       updateView = true;
       viewProperties.rotation = rotation;
     }
@@ -274,7 +328,10 @@ class Link extends Interaction {
       readNumber(this.get_(params, 'x')),
       readNumber(this.get_(params, 'y')),
     ];
-    if (differentArray(center, view.getCenter())) {
+    if (
+      ('x' in this.params_ || 'y' in this.params_) &&
+      differentArray(center, view.getCenter())
+    ) {
       updateView = true;
       viewProperties.center = center;
     }
@@ -297,7 +354,11 @@ class Link extends Interaction {
 
     const layers = map.getAllLayers();
     const layersParam = this.get_(params, 'l');
-    if (layersParam && layersParam.length === layers.length) {
+    if (
+      'l' in this.params_ &&
+      layersParam &&
+      layersParam.length === layers.length
+    ) {
       for (let i = 0, ii = layers.length; i < ii; ++i) {
         const value = parseInt(layersParam[i]);
         if (!isNaN(value)) {
@@ -312,6 +373,46 @@ class Link extends Interaction {
   }
 
   /**
+   * Register a listener for a URL search parameter.  The callback will be called with a new value
+   * when the corresponding search parameter changes due to history events (e.g. browser navigation).
+   *
+   * @param {string} key The URL search parameter.
+   * @param {Callback} callback The function to call when the search parameter changes.
+   * @return {string|null} The initial value of the search parameter (or null if absent from the URL).
+   * @api
+   */
+  track(key, callback) {
+    this.trackedCallbacks_[key] = callback;
+    const url = new URL(window.location.href);
+    const params = url.searchParams;
+    const value = params.get(key);
+    this.trackedValues_[key] = value;
+    return value;
+  }
+
+  /**
+   * Update the URL with a new search parameter value.  If the value is null, it will be
+   * deleted from the search parameters.
+   *
+   * @param {string} key The URL search parameter.
+   * @param {string|null} value The updated value (or null to remove it from the URL).
+   * @api
+   */
+  update(key, value) {
+    const url = new URL(window.location.href);
+    const params = url.searchParams;
+    if (value === null) {
+      params.delete(key);
+    } else {
+      params.set(key, value);
+    }
+    if (key in this.trackedValues_) {
+      this.trackedValues_[key] = value;
+    }
+    this.updateHistory_(url);
+  }
+
+  /**
    * @private
    */
   updateUrl_() {
@@ -323,8 +424,6 @@ class Link extends Interaction {
     if (!view) {
       return;
     }
-    const initial = this.initial_;
-    this.initial_ = false;
 
     const center = view.getCenter();
     const zoom = view.getZoom();
@@ -345,9 +444,18 @@ class Link extends Interaction {
     this.set_(params, 'r', writeNumber(rotation));
     this.set_(params, 'l', visibilities.join(''));
 
+    this.updateHistory_(url);
+    this.initial_ = false;
+  }
+
+  /**
+   * @private
+   * @param {URL} url The URL.
+   */
+  updateHistory_(url) {
     if (url.href !== window.location.href) {
-      if (initial || this.replace_) {
-        window.history.replaceState(null, '', url);
+      if (this.initial_ || this.replace_) {
+        window.history.replaceState(history.state, '', url);
       } else {
         window.history.pushState(null, '', url);
       }

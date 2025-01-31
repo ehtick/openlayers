@@ -1,10 +1,4 @@
-import BuilderGroup from '../../../../../../src/ol/render/canvas/BuilderGroup.js';
-import CanvasBuilder from '../../../../../../src/ol/render/canvas/Builder.js';
-import CanvasLineStringBuilder from '../../../../../../src/ol/render/canvas/LineStringBuilder.js';
-import CanvasPolygonBuilder from '../../../../../../src/ol/render/canvas/PolygonBuilder.js';
-import ExecutorGroup from '../../../../../../src/ol/render/canvas/ExecutorGroup.js';
 import Feature from '../../../../../../src/ol/Feature.js';
-import Fill from '../../../../../../src/ol/style/Fill.js';
 import GeometryCollection from '../../../../../../src/ol/geom/GeometryCollection.js';
 import LineString from '../../../../../../src/ol/geom/LineString.js';
 import MultiLineString from '../../../../../../src/ol/geom/MultiLineString.js';
@@ -12,13 +6,19 @@ import MultiPoint from '../../../../../../src/ol/geom/MultiPoint.js';
 import MultiPolygon from '../../../../../../src/ol/geom/MultiPolygon.js';
 import Point from '../../../../../../src/ol/geom/Point.js';
 import Polygon from '../../../../../../src/ol/geom/Polygon.js';
+import CanvasBuilder from '../../../../../../src/ol/render/canvas/Builder.js';
+import BuilderGroup from '../../../../../../src/ol/render/canvas/BuilderGroup.js';
+import ExecutorGroup from '../../../../../../src/ol/render/canvas/ExecutorGroup.js';
+import CanvasLineStringBuilder from '../../../../../../src/ol/render/canvas/LineStringBuilder.js';
+import CanvasPolygonBuilder from '../../../../../../src/ol/render/canvas/PolygonBuilder.js';
+import {renderFeature} from '../../../../../../src/ol/renderer/vector.js';
+import Fill from '../../../../../../src/ol/style/Fill.js';
 import Stroke from '../../../../../../src/ol/style/Stroke.js';
 import Style from '../../../../../../src/ol/style/Style.js';
 import {
   create as createTransform,
   scale as scaleTransform,
 } from '../../../../../../src/ol/transform.js';
-import {renderFeature} from '../../../../../../src/ol/renderer/vector.js';
 
 describe('ol.render.canvas.BuilderGroup', function () {
   describe('#replay', function () {
@@ -38,7 +38,7 @@ describe('ol.render.canvas.BuilderGroup', function () {
         1,
         pixelRatio || 1,
         !!overlaps,
-        builder.finish()
+        builder.finish(),
       );
       executor.execute(context, 1, transform, 0, false);
     }
@@ -56,7 +56,7 @@ describe('ol.render.canvas.BuilderGroup', function () {
             [0, -45],
             [-90, 0],
           ],
-        ])
+        ]),
       );
       feature1 = new Feature(
         new Polygon([
@@ -67,7 +67,7 @@ describe('ol.render.canvas.BuilderGroup', function () {
             [0, -45],
             [-90, -45],
           ],
-        ])
+        ]),
       );
       feature2 = new Feature(
         new Polygon([
@@ -78,7 +78,7 @@ describe('ol.render.canvas.BuilderGroup', function () {
             [0, 45],
             [90, 45],
           ],
-        ])
+        ]),
       );
       feature3 = new Feature(
         new Polygon([
@@ -89,7 +89,7 @@ describe('ol.render.canvas.BuilderGroup', function () {
             [90, -45],
             [-90, -45],
           ],
-        ])
+        ]),
       );
       fill0 = new Style({
         fill: new Fill({color: 'black'}),
@@ -250,14 +250,14 @@ describe('ol.render.canvas.BuilderGroup', function () {
         builder,
         pixelRatio,
         overlaps,
-        coordinate
+        coordinate,
       ) {
         const executor = new ExecutorGroup(
           [-180, -90, 180, 90],
           1,
           pixelRatio || 1,
           !!overlaps,
-          builder.finish()
+          builder.finish(),
         );
 
         executor.execute(context, 1, transform, 0, false);
@@ -270,34 +270,34 @@ describe('ol.render.canvas.BuilderGroup', function () {
           new MultiPoint([
             [45, 90],
             [90, 45],
-          ])
+          ]),
         );
         linestring = new Feature(
           new LineString([
             [45, 90],
             [45, 45],
             [90, 45],
-          ])
+          ]),
         );
         multilinestring = new Feature(
           new MultiLineString([
             linestring.getGeometry().getCoordinates(),
             linestring.getGeometry().getCoordinates(),
-          ])
+          ]),
         );
         polygon = feature1;
         multipolygon = new Feature(
           new MultiPolygon([
             polygon.getGeometry().getCoordinates(),
             polygon.getGeometry().getCoordinates(),
-          ])
+          ]),
         );
         geometrycollection = new Feature(
           new GeometryCollection([
             point.getGeometry(),
             linestring.getGeometry(),
             polygon.getGeometry(),
-          ])
+          ]),
         );
       });
       it('calls the renderer function in hit detection', function () {

@@ -1,10 +1,11 @@
 /**
  * @module ol/control/ZoomToExtent
  */
-import Control from './Control.js';
-import EventType from '../events/EventType.js';
 import {CLASS_CONTROL, CLASS_UNSELECTABLE} from '../css.js';
+import EventType from '../events/EventType.js';
 import {fromExtent as polygonFromExtent} from '../geom/Polygon.js';
+import {fromUserExtent} from '../proj.js';
+import Control from './Control.js';
 
 /**
  * @typedef {Object} Options
@@ -53,13 +54,13 @@ class ZoomToExtent extends Control {
     button.setAttribute('type', 'button');
     button.title = tipLabel;
     button.appendChild(
-      typeof label === 'string' ? document.createTextNode(label) : label
+      typeof label === 'string' ? document.createTextNode(label) : label,
     );
 
     button.addEventListener(
       EventType.CLICK,
       this.handleClick_.bind(this),
-      false
+      false,
     );
 
     const cssClasses =
@@ -86,7 +87,7 @@ class ZoomToExtent extends Control {
     const view = map.getView();
     const extent = !this.extent
       ? view.getProjection().getExtent()
-      : this.extent;
+      : fromUserExtent(this.extent, view.getProjection());
     view.fitInternal(polygonFromExtent(extent));
   }
 }

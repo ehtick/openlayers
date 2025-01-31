@@ -5,6 +5,8 @@
 // of GEOMETRY_PARSERS_ and methods using GEOMETRY_PARSERS_ do not expect
 // envelopes/extents, only geometries!
 import Feature from '../Feature.js';
+import {extend} from '../array.js';
+import Geometry from '../geom/Geometry.js';
 import LineString from '../geom/LineString.js';
 import LinearRing from '../geom/LinearRing.js';
 import MultiLineString from '../geom/MultiLineString.js';
@@ -12,8 +14,7 @@ import MultiPoint from '../geom/MultiPoint.js';
 import MultiPolygon from '../geom/MultiPolygon.js';
 import Point from '../geom/Point.js';
 import Polygon from '../geom/Polygon.js';
-import XMLFeature from './XMLFeature.js';
-import {extend} from '../array.js';
+import {get as getProjection} from '../proj.js';
 import {
   getAllTextContent,
   getAttributeNS,
@@ -22,11 +23,11 @@ import {
   parseNode,
   pushParseAndPop,
 } from '../xml.js';
-import {get as getProjection} from '../proj.js';
 import {
   transformExtentWithOptions,
   transformGeometryWithOptions,
 } from './Feature.js';
+import XMLFeature from './XMLFeature.js';
 
 /**
  * @const
@@ -145,7 +146,7 @@ class GMLBase extends XMLFeature {
         this.FEATURE_COLLECTION_PARSERS,
         node,
         objectStack,
-        this
+        this,
       );
     } else if (
       localName == 'featureMembers' ||
@@ -241,7 +242,7 @@ class GMLBase extends XMLFeature {
       this.GEOMETRY_PARSERS,
       node,
       objectStack,
-      this
+      this,
     );
   }
 
@@ -313,7 +314,7 @@ class GMLBase extends XMLFeature {
       }
 
       const len = n.attributes.length;
-      if (len > 0) {
+      if (len > 0 && !(value instanceof Geometry)) {
         value = {_content_: value};
         for (let i = 0; i < len; i++) {
           const attName = n.attributes[i].name;
@@ -332,18 +333,17 @@ class GMLBase extends XMLFeature {
     }
     if (!asFeature) {
       return values;
-    } else {
-      const feature = new Feature(values);
-      if (geometryName) {
-        feature.setGeometryName(geometryName);
-      }
-      const fid =
-        node.getAttribute('fid') || getAttributeNS(node, this.namespace, 'id');
-      if (fid) {
-        feature.setId(fid);
-      }
-      return feature;
     }
+    const feature = new Feature(values);
+    if (geometryName) {
+      feature.setGeometryName(geometryName);
+    }
+    const fid =
+      node.getAttribute('fid') || getAttributeNS(node, this.namespace, 'id');
+    if (fid) {
+      feature.setId(fid);
+    }
+    return feature;
   }
 
   /**
@@ -379,13 +379,12 @@ class GMLBase extends XMLFeature {
       this.MULTIPOINT_PARSERS,
       node,
       objectStack,
-      this
+      this,
     );
     if (coordinates) {
       return new MultiPoint(coordinates);
-    } else {
-      return undefined;
     }
+    return undefined;
   }
 
   /**
@@ -400,7 +399,7 @@ class GMLBase extends XMLFeature {
       this.MULTILINESTRING_PARSERS,
       node,
       objectStack,
-      this
+      this,
     );
     if (lineStrings) {
       return new MultiLineString(lineStrings);
@@ -419,7 +418,7 @@ class GMLBase extends XMLFeature {
       this.MULTIPOLYGON_PARSERS,
       node,
       objectStack,
-      this
+      this,
     );
     if (polygons) {
       return new MultiPolygon(polygons);
@@ -460,9 +459,8 @@ class GMLBase extends XMLFeature {
     if (flatCoordinates) {
       const lineString = new LineString(flatCoordinates, 'XYZ');
       return lineString;
-    } else {
-      return undefined;
     }
+    return undefined;
   }
 
   /**
@@ -476,13 +474,12 @@ class GMLBase extends XMLFeature {
       this.GEOMETRY_FLAT_COORDINATES_PARSERS,
       node,
       objectStack,
-      this
+      this,
     );
     if (ring) {
       return ring;
-    } else {
-      return undefined;
     }
+    return undefined;
   }
 
   /**
@@ -509,7 +506,7 @@ class GMLBase extends XMLFeature {
       this.FLAT_LINEAR_RINGS_PARSERS,
       node,
       objectStack,
-      this
+      this,
     );
     if (flatLinearRings && flatLinearRings[0]) {
       const flatCoordinates = flatLinearRings[0];
@@ -520,9 +517,8 @@ class GMLBase extends XMLFeature {
         ends.push(flatCoordinates.length);
       }
       return new Polygon(flatCoordinates, 'XYZ', ends);
-    } else {
-      return undefined;
     }
+    return undefined;
   }
 
   /**
@@ -536,7 +532,7 @@ class GMLBase extends XMLFeature {
       this.GEOMETRY_FLAT_COORDINATES_PARSERS,
       node,
       objectStack,
-      this
+      this,
     );
   }
 
@@ -545,6 +541,7 @@ class GMLBase extends XMLFeature {
    * @param {import("./Feature.js").ReadOptions} [options] Options.
    * @protected
    * @return {import("../geom/Geometry.js").default} Geometry.
+   * @override
    */
   readGeometryFromNode(node, options) {
     const geometry = this.readGeometryElement(node, [
@@ -557,6 +554,7 @@ class GMLBase extends XMLFeature {
    * @param {Element} node Node.
    * @param {import("./Feature.js").ReadOptions} [options] Options.
    * @return {Array<import("../Feature.js").default>} Features.
+   * @override
    */
   readFeaturesFromNode(node, options) {
     const internalOptions = {
@@ -573,12 +571,13 @@ class GMLBase extends XMLFeature {
   /**
    * @param {Element} node Node.
    * @return {import("../proj/Projection.js").default} Projection.
+   * @override
    */
   readProjectionFromNode(node) {
     return getProjection(
       this.srsName
         ? this.srsName
-        : node.firstElementChild.getAttribute('srsName')
+        : node.firstElementChild.getAttribute('srsName'),
     );
   }
 }
@@ -627,10 +626,10 @@ GMLBase.prototype.MULTIPOINT_PARSERS = {
 GMLBase.prototype.MULTILINESTRING_PARSERS = {
   'http://www.opengis.net/gml': {
     'lineStringMember': makeArrayPusher(
-      GMLBase.prototype.lineStringMemberParser
+      GMLBase.prototype.lineStringMemberParser,
     ),
     'lineStringMembers': makeArrayPusher(
-      GMLBase.prototype.lineStringMemberParser
+      GMLBase.prototype.lineStringMemberParser,
     ),
   },
 };

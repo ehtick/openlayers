@@ -1,6 +1,6 @@
-import GeoTIFF from '../src/ol/source/GeoTIFF.js';
 import Map from '../src/ol/Map.js';
 import TileLayer from '../src/ol/layer/WebGLTile.js';
+import GeoTIFF from '../src/ol/source/GeoTIFF.js';
 
 const source = new GeoTIFF({
   sources: [
@@ -21,7 +21,7 @@ const source = new GeoTIFF({
   ],
 });
 source.setAttributions(
-  "<a href='https://s2maps.eu'>Sentinel-2 cloudless</a> by <a href='https://eox.at/'>EOX IT Services GmbH</a> (Contains modified Copernicus Sentinel data 2019)"
+  "<a href='https://s2maps.eu'>Sentinel-2 cloudless</a> by <a href='https://eox.at/'>EOX IT Services GmbH</a> (Contains modified Copernicus Sentinel data 2019)",
 );
 
 const ndvi = [

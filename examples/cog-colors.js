@@ -1,6 +1,7 @@
-import GeoTIFF from '../src/ol/source/GeoTIFF.js';
+import {scale as chromaScale} from 'chroma-js';
 import Map from '../src/ol/Map.js';
 import TileLayer from '../src/ol/layer/WebGLTile.js';
+import GeoTIFF from '../src/ol/source/GeoTIFF.js';
 
 const segments = 10;
 
@@ -29,7 +30,7 @@ function getVariables() {
 
   const minColor = minColorInput.value;
   const maxColor = maxColorInput.value;
-  const scale = chroma.scale([minColor, maxColor]).mode('lab');
+  const scale = chromaScale([minColor, maxColor]).mode('lab');
 
   const minValue = parseFloat(minValueInput.value);
   const maxValue = parseFloat(maxValueInput.value);
@@ -68,12 +69,12 @@ const source = new GeoTIFF({
   sources: [
     {
       // visible red, band 1 in the style expression above
-      url: 'https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/2020/S2A_36QWD_20200701_0_L2A/B04.tif',
+      url: 'https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/36/Q/WD/2020/7/S2A_36QWD_20200701_0_L2A/B04.tif',
       max: 10000,
     },
     {
       // near infrared, band 2 in the style expression above
-      url: 'https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/2020/S2A_36QWD_20200701_0_L2A/B08.tif',
+      url: 'https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/36/Q/WD/2020/7/S2A_36QWD_20200701_0_L2A/B08.tif',
       max: 10000,
     },
   ],

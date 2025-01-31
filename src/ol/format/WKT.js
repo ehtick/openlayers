@@ -9,8 +9,8 @@ import MultiPoint from '../geom/MultiPoint.js';
 import MultiPolygon from '../geom/MultiPolygon.js';
 import Point from '../geom/Point.js';
 import Polygon from '../geom/Polygon.js';
-import TextFeature from './TextFeature.js';
 import {transformGeometryWithOptions} from './Feature.js';
+import TextFeature from './TextFeature.js';
 
 /**
  * Geometry constructors
@@ -540,53 +540,52 @@ class Parser {
         }
         const geometries = this.parseGeometryCollectionText_();
         return new GeometryCollection(geometries);
-      } else {
-        const ctor = GeometryConstructor[geomType];
-        if (!ctor) {
-          throw new Error('Invalid geometry type: ' + geomType);
-        }
-
-        let coordinates;
-
-        if (isEmpty) {
-          if (geomType == 'POINT') {
-            coordinates = [NaN, NaN];
-          } else {
-            coordinates = [];
-          }
-        } else {
-          switch (geomType) {
-            case 'POINT': {
-              coordinates = this.parsePointText_();
-              break;
-            }
-            case 'LINESTRING': {
-              coordinates = this.parseLineStringText_();
-              break;
-            }
-            case 'POLYGON': {
-              coordinates = this.parsePolygonText_();
-              break;
-            }
-            case 'MULTIPOINT': {
-              coordinates = this.parseMultiPointText_();
-              break;
-            }
-            case 'MULTILINESTRING': {
-              coordinates = this.parseMultiLineStringText_();
-              break;
-            }
-            case 'MULTIPOLYGON': {
-              coordinates = this.parseMultiPolygonText_();
-              break;
-            }
-            default:
-              break;
-          }
-        }
-
-        return new ctor(coordinates, this.layout_);
       }
+      const ctor = GeometryConstructor[geomType];
+      if (!ctor) {
+        throw new Error('Invalid geometry type: ' + geomType);
+      }
+
+      let coordinates;
+
+      if (isEmpty) {
+        if (geomType == 'POINT') {
+          coordinates = [NaN, NaN];
+        } else {
+          coordinates = [];
+        }
+      } else {
+        switch (geomType) {
+          case 'POINT': {
+            coordinates = this.parsePointText_();
+            break;
+          }
+          case 'LINESTRING': {
+            coordinates = this.parseLineStringText_();
+            break;
+          }
+          case 'POLYGON': {
+            coordinates = this.parsePolygonText_();
+            break;
+          }
+          case 'MULTIPOINT': {
+            coordinates = this.parseMultiPointText_();
+            break;
+          }
+          case 'MULTILINESTRING': {
+            coordinates = this.parseMultiLineStringText_();
+            break;
+          }
+          case 'MULTIPOLYGON': {
+            coordinates = this.parseMultiPolygonText_();
+            break;
+          }
+          default:
+            break;
+        }
+      }
+
+      return new ctor(coordinates, this.layout_);
     }
     throw new Error(this.formatErrorMessage_());
   }
@@ -635,6 +634,7 @@ class WKT extends TextFeature {
    * @param {string} text Text.
    * @param {import("./Feature.js").ReadOptions} [options] Read options.
    * @return {import("../Feature.js").default} Feature.
+   * @override
    */
   readFeatureFromText(text, options) {
     const geom = this.readGeometryFromText(text, options);
@@ -648,6 +648,7 @@ class WKT extends TextFeature {
    * @param {import("./Feature.js").ReadOptions} [options] Read options.
    * @protected
    * @return {Array<Feature>} Features.
+   * @override
    */
   readFeaturesFromText(text, options) {
     let geometries = [];
@@ -673,6 +674,7 @@ class WKT extends TextFeature {
    * @param {import("./Feature.js").ReadOptions} [options] Read options.
    * @protected
    * @return {import("../geom/Geometry.js").default} Geometry.
+   * @override
    */
   readGeometryFromText(text, options) {
     const geometry = this.parse_(text);
@@ -684,6 +686,7 @@ class WKT extends TextFeature {
    * @param {import("./Feature.js").WriteOptions} [options] Write options.
    * @protected
    * @return {string} Text.
+   * @override
    */
   writeFeatureText(feature, options) {
     const geometry = feature.getGeometry();
@@ -698,6 +701,7 @@ class WKT extends TextFeature {
    * @param {import("./Feature.js").WriteOptions} [options] Write options.
    * @protected
    * @return {string} Text.
+   * @override
    */
   writeFeaturesText(features, options) {
     if (features.length == 1) {
@@ -716,6 +720,7 @@ class WKT extends TextFeature {
    * @param {import("./Feature.js").WriteOptions} [options] Write options.
    * @protected
    * @return {string} Text.
+   * @override
    */
   writeGeometryText(geometry, options) {
     return encode(transformGeometryWithOptions(geometry, true, options));
@@ -854,7 +859,7 @@ function encode(geom) {
   let wktType = wktTypeLookup[type];
   if (typeof (/** @type {?} */ (geom).getFlatCoordinates) === 'function') {
     const dimInfo = encodeGeometryLayout(
-      /** @type {import("../geom/SimpleGeometry.js").default} */ (geom)
+      /** @type {import("../geom/SimpleGeometry.js").default} */ (geom),
     );
     if (dimInfo.length > 0) {
       wktType += ' ' + dimInfo;

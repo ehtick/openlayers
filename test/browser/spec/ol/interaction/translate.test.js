@@ -1,16 +1,29 @@
+import proj4 from 'proj4';
 import Collection from '../../../../../src/ol/Collection.js';
 import Feature from '../../../../../src/ol/Feature.js';
-import Interaction from '../../../../../src/ol/interaction/Interaction.js';
 import Map from '../../../../../src/ol/Map.js';
 import MapBrowserEvent from '../../../../../src/ol/MapBrowserEvent.js';
-import Point from '../../../../../src/ol/geom/Point.js';
+import View from '../../../../../src/ol/View.js';
+import {shiftKeyOnly} from '../../../../../src/ol/events/condition.js';
+import {
+  Circle,
+  GeometryCollection,
+  Point,
+  Polygon,
+} from '../../../../../src/ol/geom.js';
+import Interaction from '../../../../../src/ol/interaction/Interaction.js';
 import Translate, {
   TranslateEvent,
 } from '../../../../../src/ol/interaction/Translate.js';
 import VectorLayer from '../../../../../src/ol/layer/Vector.js';
+import {register} from '../../../../../src/ol/proj/proj4.js';
+import {
+  addCommon,
+  clearAllProjections,
+  clearUserProjection,
+  setUserProjection,
+} from '../../../../../src/ol/proj.js';
 import VectorSource from '../../../../../src/ol/source/Vector.js';
-import View from '../../../../../src/ol/View.js';
-import {shiftKeyOnly} from '../../../../../src/ol/events/condition.js';
 
 describe('ol.interaction.Translate', function () {
   let target, map, source, features;
@@ -53,8 +66,11 @@ describe('ol.interaction.Translate', function () {
   });
 
   afterEach(function () {
-    map.dispose();
-    document.body.removeChild(target);
+    disposeMap(map);
+    clearUserProjection();
+    delete proj4.defs['EPSG:32637'];
+    clearAllProjections();
+    addCommon();
   });
 
   /**
@@ -85,8 +101,8 @@ describe('ol.interaction.Translate', function () {
   /**
    * Tracks events triggered by the interaction as well as feature
    * modifications. Helper function to
-   * @param {ol.Feature} feature Translated feature.
-   * @param {ol.interaction.Translate} interaction The interaction.
+   * @param {Feature} feature Translated feature.
+   * @param {Translate} interaction The interaction.
    * @return {Array<TranslateEvent|string>} events
    */
   function trackEvents(feature, interaction) {
@@ -108,7 +124,7 @@ describe('ol.interaction.Translate', function () {
    * that first and last event are correct TranslateEvents and that feature
    * modifications event are in between.
    * @param {Array<TranslateEvent|string>} events The events.
-   * @param {Array<ol.Feature>} features The features.
+   * @param {Array<Feature>} features The features.
    */
   function validateEvents(events, features) {
     const startevent = events[0];
@@ -287,6 +303,114 @@ describe('ol.interaction.Translate', function () {
       expect(features[1].getGeometry().getCoordinates()).to.eql([20, -30]);
 
       expect(events).to.be.empty();
+    });
+  });
+
+  describe('moving geometry collection, circle, polygon features', function () {
+    let translate;
+
+    beforeEach(function () {
+      source.clear();
+      translate = new Translate();
+      map.addInteraction(translate);
+    });
+
+    it('moves in view projection', function (done) {
+      const feature = new Feature(
+        new GeometryCollection([
+          new Circle([10, -10], 10),
+          new Polygon([
+            [
+              [30, 0],
+              [20, -20],
+              [40, -20],
+              [30, 0],
+            ],
+          ]),
+        ]),
+      );
+      source.addFeature(feature);
+      map.once('postrender', function () {
+        const events = trackEvents(feature, translate);
+
+        simulateEvent('pointermove', 10, 20);
+        simulateEvent('pointerdown', 10, 20);
+        simulateEvent('pointerdrag', 50, -40);
+        simulateEvent('pointerup', 50, -40);
+
+        const geometries = feature.getGeometry().getGeometriesArray();
+        expect(geometries[0].getRadius()).to.equal(10);
+        expect(geometries[0].getCenter()).to.eql([50, 50]);
+        expect(geometries[1].getCoordinates()).to.eql([
+          [
+            [70, 60],
+            [60, 40],
+            [80, 40],
+            [70, 60],
+          ],
+        ]);
+
+        validateEvents(events, [feature]);
+        done();
+      });
+    });
+
+    it('moves in a non-parallel user projection', function (done) {
+      proj4.defs(
+        'EPSG:32637',
+        '+proj=utm +zone=37 +datum=WGS84 +units=m +no_defs +type=crs',
+      );
+      register(proj4);
+      const userProjection = 'EPSG:32637';
+      setUserProjection(userProjection);
+      const viewProjection = map.getView().getProjection();
+
+      const feature = new Feature(
+        new GeometryCollection([
+          new Circle([10, -10], 10),
+          new Polygon([
+            [
+              [30, 0],
+              [20, -20],
+              [40, -20],
+              [30, 0],
+            ],
+          ]),
+        ]).transform(viewProjection, userProjection),
+      );
+      source.addFeature(feature);
+      map.once('postrender', function () {
+        const events = trackEvents(feature, translate);
+
+        simulateEvent('pointermove', 10, 20);
+        simulateEvent('pointerdown', 10, 20);
+        simulateEvent('pointerdrag', 50, -40);
+        simulateEvent('pointerup', 50, -40);
+
+        const geometries = feature.getGeometry().getGeometriesArray();
+        const circle = geometries[0]
+          .clone()
+          .transform(userProjection, viewProjection);
+        expect(circle.getRadius()).to.roughlyEqual(10, 1e-9);
+        const center = circle.getCenter();
+        expect(center[0]).to.roughlyEqual(50, 1e-9);
+        expect(center[1]).to.roughlyEqual(50, 1e-9);
+        const polygon = geometries[1]
+          .clone()
+          .transform(userProjection, viewProjection);
+        const coordinates = polygon.getCoordinates()[0];
+        expect(coordinates[0][0]).to.roughlyEqual(70, 1e-9);
+        expect(coordinates[0][1]).to.roughlyEqual(60, 1e-9);
+        expect(coordinates[1][0]).to.roughlyEqual(60, 1e-9);
+        expect(coordinates[1][1]).to.roughlyEqual(40, 1e-9);
+        expect(coordinates[2][0]).to.roughlyEqual(80, 1e-9);
+        expect(coordinates[2][1]).to.roughlyEqual(40, 1e-9);
+        expect(coordinates[3][0]).to.equal(coordinates[0][0]);
+        expect(coordinates[3][1]).to.equal(coordinates[0][1]);
+
+        validateEvents(events, [feature]);
+        done();
+      });
     });
   });
 

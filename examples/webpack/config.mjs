@@ -1,40 +1,29 @@
-import CopyPlugin from 'copy-webpack-plugin';
-import ExampleBuilder from './example-builder.js';
-import TerserPlugin from 'terser-webpack-plugin';
 import fs from 'fs';
 import path, {dirname} from 'path';
 import {fileURLToPath} from 'url';
+import CopyPlugin from 'copy-webpack-plugin'; // eslint-disable-line import/default
+import TerserPlugin from 'terser-webpack-plugin';
+import ExampleBuilder from './example-builder.js';
 
 const src = path.join(dirname(fileURLToPath(import.meta.url)), '..');
 const root = path.join(src, '..');
 
 export default {
   context: src,
-  target: ['web', 'es5'],
+  target: ['browserslist'],
   entry: () => {
     const entry = {};
     fs.readdirSync(src)
       .filter((name) => /^(?!index).*\.html$/.test(name))
       .map((name) => name.replace(/\.html$/, ''))
       .forEach((example) => {
-        entry[example] = ['regenerator-runtime/runtime', `./${example}.js`];
+        entry[example] = `./${example}.js`;
       });
     return entry;
   },
   stats: 'minimal',
   module: {
     rules: [
-      {
-        test: /^((?!es2015-)[\s\S])*\.m?js$/,
-        use: {
-          loader: 'babel-loader',
-          options: {
-            presets: [
-              ['@babel/preset-env', {targets: 'last 2 versions, not dead'}],
-            ],
-          },
-        },
-      },
       {
         test: /\.js$/,
         use: {
@@ -95,7 +84,7 @@ export default {
       https: false,
     },
     alias: {
-      // allow imports from 'ol/module' instead of specifiying the source path
+      // allow imports from 'ol/module' instead of specifying the source path
       ol: path.join(root, 'src', 'ol'),
     },
   },

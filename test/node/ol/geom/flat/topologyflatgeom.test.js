@@ -1,5 +1,5 @@
-import expect from '../../../expect.js';
 import {lineStringIsClosed} from '../../../../../src/ol/geom/flat/topology.js';
+import expect from '../../../expect.js';
 
 describe('ol/geom/flat/topology.js', function () {
   describe('lineStringIsClosed', function () {
@@ -9,7 +9,7 @@ describe('ol/geom/flat/topology.js', function () {
         flatCoordinates,
         0,
         flatCoordinates.length,
-        2
+        2,
       );
       expect(isClosed).to.be(true);
     });
@@ -20,7 +20,7 @@ describe('ol/geom/flat/topology.js', function () {
         flatCoordinates,
         0,
         flatCoordinates.length,
-        2
+        2,
       );
       expect(isClosed).to.be(false);
     });
@@ -31,7 +31,7 @@ describe('ol/geom/flat/topology.js', function () {
         flatCoordinates,
         0,
         flatCoordinates.length,
-        2
+        2,
       );
       expect(isClosed).to.be(false);
 
@@ -40,7 +40,7 @@ describe('ol/geom/flat/topology.js', function () {
         flatCoordinates,
         0,
         flatCoordinates.length,
-        2
+        2,
       );
       expect(isClosed).to.be(false);
     });

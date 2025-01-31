@@ -1,7 +1,7 @@
 import Map from '../src/ol/Map.js';
-import OSM from '../src/ol/source/OSM.js';
-import TileLayer from '../src/ol/layer/Tile.js';
 import View from '../src/ol/View.js';
+import TileLayer from '../src/ol/layer/Tile.js';
+import OSM from '../src/ol/source/OSM.js';
 
 const osm = new TileLayer({
   source: new OSM(),
@@ -22,7 +22,7 @@ osm.on('prerender', function (event) {
   // calculate the pixel ratio and rotation of the canvas
   const matrix = event.inversePixelTransform;
   const canvasPixelRatio = Math.sqrt(
-    matrix[0] * matrix[0] + matrix[1] * matrix[1]
+    matrix[0] * matrix[0] + matrix[1] * matrix[1],
   );
   const canvasRotation = -Math.atan2(matrix[1], matrix[0]);
   ctx.save();

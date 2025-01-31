@@ -26,7 +26,7 @@ describe('expect.js', function () {
       const doc1 = '<bar:foo xmlns:bar="http://foo"></bar:foo>';
       const doc2 = '<foo xmlns="http://foo"></foo>';
       expect(
-        new DOMParser().parseFromString(doc1, 'application/xml')
+        new DOMParser().parseFromString(doc1, 'application/xml'),
       ).to.xmleql(new DOMParser().parseFromString(doc2, 'application/xml'));
     });
 
@@ -34,10 +34,10 @@ describe('expect.js', function () {
       const doc1 = '<bar:foo xmlns:bar="http://foo"></bar:foo>';
       const doc2 = '<foo xmlns="http://foo"></foo>';
       expect(
-        new DOMParser().parseFromString(doc1, 'application/xml')
+        new DOMParser().parseFromString(doc1, 'application/xml'),
       ).to.not.xmleql(
         new DOMParser().parseFromString(doc2, 'application/xml'),
-        {prefix: true}
+        {prefix: true},
       );
     });
 
@@ -45,7 +45,7 @@ describe('expect.js', function () {
       const doc1 = '<foo></foo>';
       const doc2 = '<bar></bar>';
       expect(
-        new DOMParser().parseFromString(doc1, 'application/xml')
+        new DOMParser().parseFromString(doc1, 'application/xml'),
       ).to.not.xmleql(new DOMParser().parseFromString(doc2, 'application/xml'));
     });
 
@@ -53,7 +53,7 @@ describe('expect.js', function () {
       const doc1 = '<foo attr="bla"></foo>';
       const doc2 = '<foo></foo>';
       expect(
-        new DOMParser().parseFromString(doc1, 'application/xml')
+        new DOMParser().parseFromString(doc1, 'application/xml'),
       ).to.not.xmleql(new DOMParser().parseFromString(doc2, 'application/xml'));
     });
 
@@ -61,7 +61,7 @@ describe('expect.js', function () {
       const doc1 = '<foo attr="bla"></foo>';
       const doc2 = '<foo attr="foo"></foo>';
       expect(
-        new DOMParser().parseFromString(doc1, 'application/xml')
+        new DOMParser().parseFromString(doc1, 'application/xml'),
       ).to.not.xmleql(new DOMParser().parseFromString(doc2, 'application/xml'));
     });
 
@@ -69,7 +69,47 @@ describe('expect.js', function () {
       const doc1 = '<foo><mynode></mynode></foo>';
       const doc2 = '<foo></foo>';
       expect(
-        new DOMParser().parseFromString(doc1, 'application/xml')
+        new DOMParser().parseFromString(doc1, 'application/xml'),
+      ).to.not.xmleql(new DOMParser().parseFromString(doc2, 'application/xml'));
+    });
+
+    it('Test idential CDATA sections', function () {
+      const doc1 = '<foo><![CDATA[  test  ]]></foo>';
+      const doc2 = '<foo><![CDATA[  test  ]]></foo>';
+      expect(
+        new DOMParser().parseFromString(doc1, 'application/xml'),
+      ).to.xmleql(new DOMParser().parseFromString(doc2, 'application/xml'));
+    });
+
+    it('Test different CDATA sections', function () {
+      const doc1 = '<foo><![CDATA[test  ]]></foo>';
+      const doc2 = '<foo><![CDATA[  test]]></foo>';
+      expect(
+        new DOMParser().parseFromString(doc1, 'application/xml'),
+      ).to.not.xmleql(new DOMParser().parseFromString(doc2, 'application/xml'));
+    });
+
+    it('Test CDATA and Textnode', function () {
+      const doc1 = '<foo><![CDATA[test]]></foo>';
+      const doc2 = '<foo>test</foo>';
+      expect(
+        new DOMParser().parseFromString(doc1, 'application/xml'),
+      ).to.not.xmleql(new DOMParser().parseFromString(doc2, 'application/xml'));
+    });
+
+    it('Test different amount of CDATA sections', function () {
+      const doc1 = '<foo><![CDATA[test1]]><!CDATA[test2]]></foo>';
+      const doc2 = '<foo><![CDATA[test1]]></foo>';
+      expect(
+        new DOMParser().parseFromString(doc1, 'application/xml'),
+      ).to.not.xmleql(new DOMParser().parseFromString(doc2, 'application/xml'));
+    });
+
+    it('Test missing CDATA section', function () {
+      const doc1 = '<foo></foo>';
+      const doc2 = '<foo><![CDATA[test1]]></foo>';
+      expect(
+        new DOMParser().parseFromString(doc1, 'application/xml'),
       ).to.not.xmleql(new DOMParser().parseFromString(doc2, 'application/xml'));
     });
   });

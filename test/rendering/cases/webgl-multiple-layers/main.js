@@ -1,10 +1,10 @@
-import DataTile from '../../../../src/ol/source/DataTile.js';
-import KML from '../../../../src/ol/format/KML.js';
 import Map from '../../../../src/ol/Map.js';
-import PointsLayer from '../../../../src/ol/layer/WebGLPoints.js';
-import TileLayer from '../../../../src/ol/layer/WebGLTile.js';
-import VectorSource from '../../../../src/ol/source/Vector.js';
 import View from '../../../../src/ol/View.js';
+import KML from '../../../../src/ol/format/KML.js';
+import TileLayer from '../../../../src/ol/layer/WebGLTile.js';
+import VectorLayer from '../../../../src/ol/layer/WebGLVector.js';
+import DataTile from '../../../../src/ol/source/DataTile.js';
+import VectorSource from '../../../../src/ol/source/Vector.js';
 import XYZ from '../../../../src/ol/source/XYZ.js';
 
 const labelCanvasSize = 256;
@@ -26,7 +26,7 @@ new Map({
         transition: 0,
       }),
     }),
-    new PointsLayer({
+    new VectorLayer({
       opacity: 0.5,
       source: new VectorSource({
         url: '/data/2012_Earthquakes_Mag5.kml',
@@ -35,11 +35,8 @@ new Map({
         }),
       }),
       style: {
-        symbol: {
-          symbolType: 'circle',
-          size: 6,
-          color: 'orange',
-        },
+        'circle-radius': 3,
+        'circle-fill-color': 'orange',
       },
     }),
     new TileLayer({
@@ -63,7 +60,7 @@ new Map({
             0,
             0,
             labelCanvasSize,
-            labelCanvasSize
+            labelCanvasSize,
           ).data;
           return new Uint8Array(data.buffer);
         },

@@ -1,10 +1,10 @@
+import VectorTile from '../../../../src/ol/VectorTile.js';
+import {listen} from '../../../../src/ol/events.js';
 import GeoJSON from '../../../../src/ol/format/GeoJSON.js';
 import MVT from '../../../../src/ol/format/MVT.js';
-import VectorTile from '../../../../src/ol/VectorTile.js';
-import {createXYZ} from '../../../../src/ol/tilegrid.js';
-import {defaultLoadFunction} from '../../../../src/ol/source/VectorTile.js';
 import {get as getProjection} from '../../../../src/ol/proj.js';
-import {listen} from '../../../../src/ol/events.js';
+import {defaultLoadFunction} from '../../../../src/ol/source/VectorTile.js';
+import {createXYZ} from '../../../../src/ol/tilegrid.js';
 
 describe('ol.VectorTile', function () {
   it('loader reprojects GeoJSON features', function (done) {
@@ -33,7 +33,7 @@ describe('ol.VectorTile', function () {
     const loader = tile.loader_;
     listen(tile, 'change', function (e) {
       expect(
-        tile.getFeatures()[1246].getGeometry().getFlatCoordinates()
+        tile.getFeatures()[1246].getGeometry().getFlatCoordinates(),
       ).to.eql([1827804.0218549764, 6144812.116688028]);
       done();
     });

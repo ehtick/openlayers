@@ -1,5 +1,5 @@
-import Event from '../../../../src/ol/events/Event.js';
 import MapBrowserEvent from '../../../../src/ol/MapBrowserEvent.js';
+import Event from '../../../../src/ol/events/Event.js';
 import {Map, View} from '../../../../src/ol/index.js';
 import {clearUserProjection, useGeographic} from '../../../../src/ol/proj.js';
 
@@ -33,8 +33,7 @@ describe('ol/MapBrowserEvent', function () {
     });
 
     afterEach(() => {
-      ref.map.dispose();
-      document.body.removeChild(ref.target);
+      disposeMap(ref.map);
     });
 
     it('is the pixel position of the event', () => {
@@ -74,8 +73,7 @@ describe('ol/MapBrowserEvent', function () {
     });
 
     afterEach(() => {
-      ref.map.dispose();
-      document.body.removeChild(ref.target);
+      disposeMap(ref.map);
     });
 
     it('is the map coordinate of the event', () => {
@@ -116,9 +114,8 @@ describe('ol/MapBrowserEvent', function () {
     });
 
     afterEach(() => {
+      disposeMap(ref.map);
       clearUserProjection();
-      ref.map.dispose();
-      document.body.removeChild(ref.target);
     });
 
     it('is the geographic coordinate of the event', () => {

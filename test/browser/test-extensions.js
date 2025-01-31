@@ -1,5 +1,9 @@
-// avoid importing anything that results in an instanceof check
-// since these extensions are global, instanceof checks fail with modules
+import Map from '../../src/ol/Map.js';
+import View from '../../src/ol/View.js';
+import {setLevel as setLogLevel} from '../../src/ol/console.js';
+import {defaults as defaultInteractions} from '../../src/ol/interaction.js';
+
+setLogLevel('error');
 
 (function (global) {
   function afterLoad(type, path, next) {
@@ -22,7 +26,7 @@
 
   /**
    * @param {string} path Relative path to file (e.g. 'spec/ol/foo.json').
-   * @param {function(Object)} next Function to call with response object on
+   * @param {function(Object): void} next Function to call with response object on
    *     success.  On failure, an error is thrown with the reason.
    */
   global.afterLoadJson = function (path, next) {
@@ -31,7 +35,7 @@
 
   /**
    * @param {string} path Relative path to file (e.g. 'spec/ol/foo.txt').
-   * @param {function(string)} next Function to call with response text on
+   * @param {function(string): void} next Function to call with response text on
    *     success.  On failure, an error is thrown with the reason.
    */
   global.afterLoadText = function (path, next) {
@@ -40,7 +44,7 @@
 
   /**
    * @param {string} path Relative path to file (e.g. 'spec/ol/foo.xml').
-   * @param {function(Document)} next Function to call with response xml on
+   * @param {function(Document): void} next Function to call with response xml on
    *     success.  On failure, an error is thrown with the reason.
    */
   global.afterLoadXml = function (path, next) {
@@ -78,7 +82,7 @@
           ' of ' +
           n
         );
-      }
+      },
     );
     return this;
   };
@@ -87,30 +91,32 @@
     // check whitespace
     if (options && options.includeWhiteSpace) {
       return node.childNodes;
-    } else {
-      const nodes = [];
-      for (let i = 0, ii = node.childNodes.length; i < ii; i++) {
-        const child = node.childNodes[i];
-        if (child.nodeType == 1) {
-          // element node, add it
-          nodes.push(child);
-        } else if (child.nodeType == 3) {
-          // text node, add if non empty
-          if (
-            child.nodeValue &&
-            child.nodeValue.replace(/^\s*(.*?)\s*$/, '$1') !== ''
-          ) {
-            nodes.push(child);
-          }
-        }
-      }
-      if (options && options.ignoreElementOrder) {
-        nodes.sort(function (a, b) {
-          return a.nodeName > b.nodeName ? 1 : a.nodeName < b.nodeName ? -1 : 0;
-        });
-      }
-      return nodes;
     }
+    const nodes = [];
+    for (let i = 0, ii = node.childNodes.length; i < ii; i++) {
+      const child = node.childNodes[i];
+      if (child.nodeType == 1) {
+        // element node, add it
+        nodes.push(child);
+      } else if (child.nodeType == 3) {
+        // text node, add if non empty
+        if (
+          child.nodeValue &&
+          child.nodeValue.replace(/^\s*(.*?)\s*$/, '$1') !== ''
+        ) {
+          nodes.push(child);
+        }
+      } else if (child.nodeType == 4) {
+        // CDATA section, add it
+        nodes.push(child);
+      }
+    }
+    if (options && options.ignoreElementOrder) {
+      nodes.sort(function (a, b) {
+        return a.nodeName > b.nodeName ? 1 : a.nodeName < b.nodeName ? -1 : 0;
+      });
+    }
+    return nodes;
   }
 
   function assertElementNodesEqual(node1, node2, options, errors) {
@@ -124,7 +130,7 @@
           ' | expected ' +
           node1.nodeType +
           ' to equal ' +
-          node2.nodeType
+          node2.nodeType,
       );
     }
     if (testPrefix) {
@@ -137,7 +143,7 @@
             ' | expected ' +
             node1.nodeName +
             ' to equal ' +
-            node2.nodeName
+            node2.nodeName,
         );
       }
     } else {
@@ -152,7 +158,7 @@
             ' | expected ' +
             n1 +
             ' to equal ' +
-            n2
+            n2,
         );
       }
     }
@@ -162,7 +168,17 @@
       const nv2 = node2.nodeValue.replace(/\s/g, '');
       if (nv1 !== nv2) {
         errors.push(
-          'nodeValue test failed | expected ' + nv1 + ' to equal ' + nv2
+          'nodeValue test failed | expected ' + nv1 + ' to equal ' + nv2,
+        );
+      }
+    } else if (node1.nodeType === 4) {
+      // for CDATA sections compare nodeValue directly
+      if (node1.nodeValue !== node2.nodeValue) {
+        errors.push(
+          'nodeValue cdata test failed | expected ' +
+            node1.nodeValue +
+            ' to equal ' +
+            node2.nodeValue,
         );
       }
     } else if (node1.nodeType === 1) {
@@ -177,7 +193,7 @@
                 ' | expected ' +
                 node1.prefix +
                 ' to equal ' +
-                node2.prefix
+                node2.prefix,
             );
           }
         }
@@ -190,7 +206,7 @@
               ' | expected ' +
               node1.namespaceURI +
               ' to equal ' +
-              node2.namespaceURI
+              node2.namespaceURI,
           );
         }
       }
@@ -232,7 +248,7 @@
             ' | expected ' +
             node1AttrLen +
             ' to equal ' +
-            node2AttrLen
+            node2AttrLen,
         );
       }
       for (const name in node1Attr) {
@@ -241,7 +257,7 @@
             'Attribute name ' +
               node1Attr[name].name +
               ' expected for element ' +
-              node1.nodeName
+              node1.nodeName,
           );
           break;
         }
@@ -253,7 +269,7 @@
               ' | expected ' +
               node1Attr[name].namespaceURI +
               ' to equal ' +
-              node2Attr[name].namespaceURI
+              node2Attr[name].namespaceURI,
           );
         }
         if (node1Attr[name].value !== node2Attr[name].value) {
@@ -263,7 +279,7 @@
               ' | expected ' +
               node1Attr[name].value +
               ' to equal ' +
-              node2Attr[name].value
+              node2Attr[name].value,
           );
         }
       }
@@ -295,7 +311,7 @@
               ' | expected ' +
               node1ChildNodes.length +
               ' to equal ' +
-              node2ChildNodes.length
+              node2ChildNodes.length,
           );
         }
       }
@@ -306,7 +322,7 @@
             node1ChildNodes[j],
             node2ChildNodes[j],
             options,
-            errors
+            errors,
           );
         }
       }
@@ -356,7 +372,7 @@
           '\n' +
           errors.join('\n')
         );
-      }
+      },
     );
     return this;
   };
@@ -374,13 +390,16 @@
     return target;
   };
 
-  global.disposeMap = function (map) {
-    const target = map.getTarget();
-    map.setTarget(null);
-    if (target && target.parentNode) {
-      target.parentNode.removeChild(target);
+  /**
+   * @param {import('../../src/ol/Map.js').default|undefined} map Map
+   * @param {HTMLElement} [target] Node in dom
+   */
+  global.disposeMap = function (map, target) {
+    target?.remove();
+    if (map) {
+      map.getTargetElement()?.remove();
+      map.dispose();
     }
-    map.dispose();
   };
 
   const features = {
@@ -416,4 +435,47 @@
       throw new Error('Found extra <div> elements in the body');
     }
   });
+
+  /**
+   * Defines and registers a custom HTML element `ol-map`.
+   *
+   * @param {Object} options Object holding different options used in
+   *  constructor of OLComponent. Currently 'interactionOpts' can be set as
+   *  child property.
+   */
+  global.defineCustomMapEl = function (options) {
+    // custom HTML element holding the OL map
+    class OLComponent extends HTMLElement {
+      constructor() {
+        super();
+        const shadow = this.attachShadow({mode: 'open'});
+
+        const style = document.createElement('style');
+        style.innerText = `
+          :host {
+            display: block;
+          }
+        `;
+        shadow.appendChild(style);
+
+        const target = document.createElement('div');
+        target.style.width = '100%';
+        target.style.height = '100%';
+        shadow.appendChild(target);
+
+        this.map = new Map({
+          target: target,
+          interactions: defaultInteractions(options.interactionOpts),
+          view: new View({
+            center: [0, 0],
+            resolutions: [1],
+            zoom: 8,
+          }),
+        });
+      }
+    }
+    if (customElements.get('ol-map') === undefined) {
+      customElements.define('ol-map', OLComponent);
+    }
+  };
 })(window);

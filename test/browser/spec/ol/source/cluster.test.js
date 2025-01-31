@@ -1,12 +1,12 @@
-import Cluster from '../../../../../src/ol/source/Cluster.js';
-import EventType from '../../../../../src/ol/events/EventType.js';
 import Feature from '../../../../../src/ol/Feature.js';
+import EventType from '../../../../../src/ol/events/EventType.js';
 import LineString from '../../../../../src/ol/geom/LineString.js';
 import Point from '../../../../../src/ol/geom/Point.js';
 import Polygon from '../../../../../src/ol/geom/Polygon.js';
+import {get as getProjection} from '../../../../../src/ol/proj.js';
+import Cluster from '../../../../../src/ol/source/Cluster.js';
 import Source from '../../../../../src/ol/source/Source.js';
 import VectorSource from '../../../../../src/ol/source/Vector.js';
-import {get as getProjection} from '../../../../../src/ol/proj.js';
 
 describe('ol.source.Cluster', function () {
   describe('constructor', function () {
@@ -37,13 +37,24 @@ describe('ol.source.Cluster', function () {
       expect(source.getFeatures().length).to.be(1);
       expect(source.getFeatures()[0].get('features').length).to.be(2);
     });
+    it('clusters a source with point and null features', function () {
+      const source = new Cluster({
+        source: new VectorSource({
+          features: [new Feature(new Point([0, 0])), new Feature()],
+        }),
+      });
+      source.loadFeatures(extent, 1, projection);
+      expect(source.getFeatures().length).to.be(1);
+      expect(source.getFeatures()[0].get('features').length).to.be(1);
+    });
     it('clusters with a custom geometryFunction', function () {
       const source = new Cluster({
         geometryFunction: function (feature) {
           const geom = feature.getGeometry();
           if (geom.getType() == 'Point') {
             return geom;
-          } else if (geom.getType() == 'Polygon') {
+          }
+          if (geom.getType() == 'Polygon') {
             return geom.getInteriorPoint();
           }
           return null;
@@ -55,7 +66,7 @@ describe('ol.source.Cluster', function () {
               new LineString([
                 [0, 0],
                 [1, 1],
-              ])
+              ]),
             ),
             new Feature(
               new Polygon([
@@ -66,7 +77,7 @@ describe('ol.source.Cluster', function () {
                   [1, -1],
                   [-1, -1],
                 ],
-              ])
+              ]),
             ),
           ],
         }),

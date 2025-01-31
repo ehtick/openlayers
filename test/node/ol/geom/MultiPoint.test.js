@@ -1,8 +1,8 @@
+import {spy as sinonSpy} from 'sinon';
+import {isEmpty} from '../../../../src/ol/extent.js';
 import MultiPoint from '../../../../src/ol/geom/MultiPoint.js';
 import Point from '../../../../src/ol/geom/Point.js';
 import expect from '../../expect.js';
-import sinon from 'sinon';
-import {isEmpty} from '../../../../src/ol/extent.js';
 
 describe('ol/geom/MultiPoint.js', function () {
   it('cannot be constructed with a null geometry', function () {
@@ -132,7 +132,7 @@ describe('ol/geom/MultiPoint.js', function () {
           [1, 2, 3],
           [4, 5, 6],
         ],
-        'XYM'
+        'XYM',
       );
     });
 
@@ -268,18 +268,19 @@ describe('ol/geom/MultiPoint.js', function () {
         [1, 2],
         [3, 4],
       ]);
-      transform = sinon.spy();
+      transform = sinonSpy();
     });
 
     it('calls a transform function', function () {
       multi.applyTransform(transform);
       expect(transform.calledOnce).to.be(true);
       const args = transform.firstCall.args;
-      expect(args).to.have.length(3);
+      expect(args).to.have.length(4);
 
       expect(args[0]).to.be(multi.getFlatCoordinates()); // input coords
       expect(args[1]).to.be(multi.getFlatCoordinates()); // output coords
       expect(args[2]).to.be(2); // dimension
+      expect(args[3]).to.be(2); // stride
     });
 
     it('allows for modification of coordinates', function () {

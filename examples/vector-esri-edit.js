@@ -1,18 +1,18 @@
-import EsriJSON from '../src/ol/format/EsriJSON.js';
+import $ from 'jquery';
 import Map from '../src/ol/Map.js';
-import VectorSource from '../src/ol/source/Vector.js';
 import View from '../src/ol/View.js';
-import XYZ from '../src/ol/source/XYZ.js';
-import {
-  Draw,
-  Modify,
-  Select,
-  defaults as defaultInteractions,
-} from '../src/ol/interaction.js';
-import {Tile as TileLayer, Vector as VectorLayer} from '../src/ol/layer.js';
-import {createXYZ} from '../src/ol/tilegrid.js';
-import {fromLonLat} from '../src/ol/proj.js';
+import EsriJSON from '../src/ol/format/EsriJSON.js';
+import Draw from '../src/ol/interaction/Draw.js';
+import Modify from '../src/ol/interaction/Modify.js';
+import Select from '../src/ol/interaction/Select.js';
+import {defaults as defaultInteractions} from '../src/ol/interaction/defaults.js';
+import TileLayer from '../src/ol/layer/Tile.js';
+import VectorLayer from '../src/ol/layer/Vector.js';
 import {tile as tileStrategy} from '../src/ol/loadingstrategy.js';
+import {fromLonLat} from '../src/ol/proj.js';
+import ImageTile from '../src/ol/source/ImageTile.js';
+import VectorSource from '../src/ol/source/Vector.js';
+import {createXYZ} from '../src/ol/tilegrid.js';
 
 const serviceUrl =
   'https://sampleserver6.arcgisonline.com/arcgis/rest/services/Wildfire/FeatureServer/';
@@ -36,7 +36,7 @@ const vectorSource = new VectorSource({
           extent[2] +
           ',"ymax":' +
           extent[3] +
-          ',"spatialReference":{"wkid":102100}}'
+          ',"spatialReference":{"wkid":102100}}',
       ) +
       '&geometryType=esriGeometryEnvelope&inSR=102100&outFields=*' +
       '&outSR=102100';
@@ -46,7 +46,7 @@ const vectorSource = new VectorSource({
       success: function (response) {
         if (response.error) {
           alert(
-            response.error.message + '\n' + response.error.details.join('\n')
+            response.error.message + '\n' + response.error.details.join('\n'),
           );
         } else {
           // dataProjection will be read from document
@@ -63,7 +63,7 @@ const vectorSource = new VectorSource({
   strategy: tileStrategy(
     createXYZ({
       tileSize: 512,
-    })
+    }),
   ),
 });
 
@@ -72,7 +72,7 @@ const vector = new VectorLayer({
 });
 
 const raster = new TileLayer({
-  source: new XYZ({
+  source: new ImageTile({
     attributions:
       'Tiles © <a href="https://services.arcgisonline.com/ArcGIS/' +
       'rest/services/World_Topo_Map/MapServer">ArcGIS</a>',

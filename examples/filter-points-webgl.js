@@ -1,12 +1,12 @@
 import Feature from '../src/ol/Feature.js';
 import Map from '../src/ol/Map.js';
-import Point from '../src/ol/geom/Point.js';
-import Stamen from '../src/ol/source/Stamen.js';
-import TileLayer from '../src/ol/layer/Tile.js';
 import View from '../src/ol/View.js';
-import WebGLPointsLayer from '../src/ol/layer/WebGLPoints.js';
-import {Vector} from '../src/ol/source.js';
+import Point from '../src/ol/geom/Point.js';
+import TileLayer from '../src/ol/layer/Tile.js';
+import WebGLVectorLayer from '../src/ol/layer/WebGLVector.js';
 import {fromLonLat} from '../src/ol/proj.js';
+import StadiaMaps from '../src/ol/source/StadiaMaps.js';
+import Vector from '../src/ol/source/Vector.js';
 
 const vectorSource = new Vector({
   attributions: 'NASA',
@@ -34,21 +34,21 @@ const animRatio = [
 ];
 
 const style = {
-  variables: {
-    minYear: 1850,
-    maxYear: 2015,
-  },
-  filter: ['between', ['get', 'year'], ['var', 'minYear'], ['var', 'maxYear']],
-  symbol: {
-    symbolType: 'circle',
-    size: [
-      '*',
-      ['interpolate', ['linear'], ['get', 'mass'], 0, 8, 200000, 26],
-      ['-', 1.75, ['*', animRatio, 0.75]],
-    ],
-    color: ['interpolate', ['linear'], animRatio, 0, newColor, 1, oldColor],
-    opacity: ['-', 1.0, ['*', animRatio, 0.75]],
-  },
+  'circle-radius': [
+    '*',
+    ['interpolate', ['linear'], ['get', 'mass'], 0, 4, 200000, 13],
+    ['-', 1.75, ['*', animRatio, 0.75]],
+  ],
+  'circle-fill-color': [
+    'interpolate',
+    ['linear'],
+    animRatio,
+    0,
+    newColor,
+    1,
+    oldColor,
+  ],
+  'circle-opacity': ['-', 1.0, ['*', animRatio, 0.75]],
 };
 
 // handle input values & events
@@ -61,12 +61,30 @@ function updateStatusText() {
   div.querySelector('span.max-year').textContent = maxYearInput.value;
 }
 
+const pointsLayer = new WebGLVectorLayer({
+  variables: {
+    minYear: parseInt(minYearInput.value),
+    maxYear: parseInt(maxYearInput.value),
+  },
+  style: {
+    style,
+    filter: [
+      'between',
+      ['get', 'year'],
+      ['var', 'minYear'],
+      ['var', 'maxYear'],
+    ],
+  },
+  source: vectorSource,
+  disableHitDetection: true,
+});
+
 minYearInput.addEventListener('input', function () {
-  style.variables.minYear = parseInt(minYearInput.value);
+  pointsLayer.updateStyleVariables({minYear: parseInt(minYearInput.value)});
   updateStatusText();
 });
 maxYearInput.addEventListener('input', function () {
-  style.variables.maxYear = parseInt(maxYearInput.value);
+  pointsLayer.updateStyleVariables({maxYear: parseInt(maxYearInput.value)});
   updateStatusText();
 });
 updateStatusText();
@@ -96,7 +114,7 @@ client.onload = function () {
         mass: parseFloat(line[1]) || 0,
         year: parseInt(line[2]) || 0,
         geometry: new Point(coords),
-      })
+      }),
     );
   }
 
@@ -107,15 +125,11 @@ client.send();
 const map = new Map({
   layers: [
     new TileLayer({
-      source: new Stamen({
-        layer: 'toner',
+      source: new StadiaMaps({
+        layer: 'stamen_toner',
       }),
     }),
-    new WebGLPointsLayer({
-      style: style,
-      source: vectorSource,
-      disableHitDetection: true,
-    }),
+    pointsLayer,
   ],
   target: document.getElementById('map'),
   view: new View({

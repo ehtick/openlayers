@@ -1,9 +1,9 @@
 import Map from '../src/ol/Map.js';
-import OSM from '../src/ol/source/OSM.js';
-import TileLayer from '../src/ol/layer/Tile.js';
 import View from '../src/ol/View.js';
 import {easeIn, easeOut} from '../src/ol/easing.js';
+import TileLayer from '../src/ol/layer/Tile.js';
 import {fromLonLat} from '../src/ol/proj.js';
+import OSM from '../src/ol/source/OSM.js';
 
 const london = fromLonLat([-0.12755, 51.507222]);
 const moscow = fromLonLat([37.6178, 55.7517]);
@@ -87,7 +87,7 @@ onClick('rotate-around-rome', function () {
       rotation: rotation + 2 * Math.PI,
       anchor: rome,
       easing: easeOut,
-    }
+    },
   );
 });
 
@@ -130,7 +130,7 @@ onClick('spin-to-rome', function () {
       center: rome,
       rotation: 2 * Math.PI,
       easing: easeOut,
-    }
+    },
   );
 });
 
@@ -154,7 +154,7 @@ function flyTo(location, done) {
       center: location,
       duration: duration,
     },
-    callback
+    callback,
   );
   view.animate(
     {
@@ -165,7 +165,7 @@ function flyTo(location, done) {
       zoom: zoom,
       duration: duration / 2,
     },
-    callback
+    callback,
   );
 }
 
