@@ -1,14 +1,14 @@
-import CircleStyle from '../../../../src/ol/style/Circle.js';
 import Feature from '../../../../src/ol/Feature.js';
-import Fill from '../../../../src/ol/style/Fill.js';
 import Map from '../../../../src/ol/Map.js';
+import View from '../../../../src/ol/View.js';
 import Point from '../../../../src/ol/geom/Point.js';
+import VectorLayer from '../../../../src/ol/layer/Vector.js';
+import VectorSource from '../../../../src/ol/source/Vector.js';
+import CircleStyle from '../../../../src/ol/style/Circle.js';
+import Fill from '../../../../src/ol/style/Fill.js';
 import Stroke from '../../../../src/ol/style/Stroke.js';
 import Style from '../../../../src/ol/style/Style.js';
 import Text from '../../../../src/ol/style/Text.js';
-import VectorLayer from '../../../../src/ol/layer/Vector.js';
-import VectorSource from '../../../../src/ol/source/Vector.js';
-import View from '../../../../src/ol/View.js';
 
 const center = [1825927.7316762917, 6143091.089223046];
 const map = new Map({
@@ -52,7 +52,7 @@ map.addLayer(
         }),
       });
     },
-  })
+  }),
 );
 
 const sourceRed = new VectorSource();
@@ -73,7 +73,6 @@ sourceRed.addFeatures([
 // red circles are always drawn, but serve as obstacles.
 // however, they cannot serve as obstacles for layers on-top (blue layer).
 // texts are decluttered against each other and the circles.
-// circles are drawn on non-declutter executor, i.e. behind decluttered labels and objects.
 map.addLayer(
   new VectorLayer({
     zIndex: 3,
@@ -97,7 +96,7 @@ map.addLayer(
         }),
       });
     },
-  })
+  }),
 );
 
 const sourceOrange = new VectorSource();
@@ -140,7 +139,7 @@ map.addLayer(
         }),
       });
     },
-  })
+  }),
 );
 
 const sourceCyan = new VectorSource();
@@ -161,7 +160,6 @@ sourceCyan.addFeatures([
 // cyan circles are always drawn.
 // texts are decluttered against each others (and blue/red/orange layers).
 // the circles of the orange layer and this layer are no obstactles for texts.
-// the texts are decluttered and thus above the circles of the orange layer.
 map.addLayer(
   new VectorLayer({
     zIndex: 1,
@@ -185,7 +183,7 @@ map.addLayer(
         }),
       });
     },
-  })
+  }),
 );
 
 render({tolerance: 0.007});

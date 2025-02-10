@@ -1,15 +1,15 @@
-import Map from '../../../../src/ol/Map.js';
-import TileLayer from '../../../../src/ol/layer/Tile.js';
-import View from '../../../../src/ol/View.js';
-import XYZ from '../../../../src/ol/source/XYZ.js';
 import proj4 from 'proj4';
-import {get, transform} from '../../../../src/ol/proj.js';
+import Map from '../../../../src/ol/Map.js';
+import View from '../../../../src/ol/View.js';
+import TileLayer from '../../../../src/ol/layer/Tile.js';
 import {register} from '../../../../src/ol/proj/proj4.js';
+import {get, transform} from '../../../../src/ol/proj.js';
+import XYZ from '../../../../src/ol/source/XYZ.js';
 
 proj4.defs(
   'EPSG:3413',
   '+proj=stere +lat_0=90 +lat_ts=70 +lon_0=-45 ' +
-    '+k=1 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs'
+    '+k=1 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs',
 );
 
 register(proj4);
@@ -23,6 +23,7 @@ const source = new XYZ({
   maxZoom: 0,
   projection: 'EPSG:4326',
   url: '/data/tiles/4326/{z}/{x}/{y}.png',
+  transition: 0,
 });
 
 new Map({

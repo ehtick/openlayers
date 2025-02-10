@@ -1,3 +1,4 @@
+import {spy as sinonSpy} from 'sinon';
 import {
   getJSON,
   jsonp as requestJSONP,
@@ -29,7 +30,7 @@ describe('ol/net', function () {
     it('returns the second arg if it is an absolute URL', function () {
       const url = resolveUrl(
         'https://example.com',
-        'https://other-example.com'
+        'https://other-example.com',
       );
       expect(url).to.be('https://other-example.com');
     });
@@ -43,7 +44,7 @@ describe('ol/net', function () {
     let key, removeChild;
 
     function createCallback(url, done) {
-      removeChild = sinon.spy();
+      removeChild = sinonSpy();
       const callback = function (data) {
         expect(data).to.be(url + key);
         expect(removeChild.called).to.be(true);
@@ -58,9 +59,8 @@ describe('ol/net', function () {
       document.createElement = function (arg) {
         if (arg == 'script') {
           return element;
-        } else {
-          return origCreateElement.apply(document, arguments);
         }
+        return origCreateElement.apply(document, arguments);
       };
       head.appendChild = function (el) {
         if (el === element) {

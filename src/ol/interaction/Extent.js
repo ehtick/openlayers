@@ -1,29 +1,29 @@
 /**
  * @module ol/interaction/Extent
  */
-import Event from '../events/Event.js';
 import Feature from '../Feature.js';
 import MapBrowserEventType from '../MapBrowserEventType.js';
-import Point from '../geom/Point.js';
-import PointerInteraction from './Pointer.js';
-import VectorLayer from '../layer/Vector.js';
-import VectorSource from '../source/Vector.js';
-import {always} from '../events/condition.js';
-import {boundingExtent, getArea} from '../extent.js';
 import {
   closestOnSegment,
   distance as coordinateDistance,
   squaredDistance as squaredCoordinateDistance,
   squaredDistanceToSegment,
 } from '../coordinate.js';
-import {createEditingStyle} from '../style/Style.js';
+import Event from '../events/Event.js';
+import {always} from '../events/condition.js';
+import {boundingExtent, getArea} from '../extent.js';
+import Point from '../geom/Point.js';
 import {fromExtent as polygonFromExtent} from '../geom/Polygon.js';
+import VectorLayer from '../layer/Vector.js';
 import {toUserExtent} from '../proj.js';
+import VectorSource from '../source/Vector.js';
+import {createEditingStyle} from '../style/Style.js';
+import PointerInteraction from './Pointer.js';
 
 /**
  * @typedef {Object} Options
  * @property {import("../events/condition.js").Condition} [condition] A function that
- * takes an {@link module:ol/MapBrowserEvent~MapBrowserEvent} and returns a
+ * takes a {@link module:ol/MapBrowserEvent~MapBrowserEvent} and returns a
  * boolean to indicate whether that event should be handled.
  * Default is {@link module:ol/events/condition.always}.
  * @property {import("../extent.js").Extent} [extent] Initial extent. Defaults to no
@@ -72,6 +72,10 @@ export class ExtentEvent extends Event {
     this.extent = extent;
   }
 }
+
+/**
+ * @typedef {function (import("../coordinate.js").Coordinate): import("../extent.js").Extent} PointerHandler
+ */
 
 /***
  * @template Return
@@ -132,7 +136,7 @@ class Extent extends PointerInteraction {
 
     /**
      * Handler for pointer move events
-     * @type {function (import("../coordinate.js").Coordinate): import("../extent.js").Extent|null}
+     * @type {PointerHandler|null}
      * @private
      */
     this.pointerHandler_ = null;
@@ -314,6 +318,7 @@ class Extent extends PointerInteraction {
   /**
    * @param {import("../MapBrowserEvent.js").default} mapBrowserEvent Map browser event.
    * @return {boolean} `false` to stop event propagation.
+   * @override
    */
   handleEvent(mapBrowserEvent) {
     if (!mapBrowserEvent.originalEvent || !this.condition_(mapBrowserEvent)) {
@@ -336,6 +341,7 @@ class Extent extends PointerInteraction {
    * Handle pointer down events.
    * @param {import("../MapBrowserEvent.js").default} mapBrowserEvent Event.
    * @return {boolean} If the event was consumed.
+   * @override
    */
   handleDownEvent(mapBrowserEvent) {
     const pixel = mapBrowserEvent.pixel;
@@ -376,12 +382,12 @@ class Extent extends PointerInteraction {
       } else if (x !== null) {
         this.pointerHandler_ = getEdgeHandler(
           getOpposingPoint([x, extent[1]]),
-          getOpposingPoint([x, extent[3]])
+          getOpposingPoint([x, extent[3]]),
         );
       } else if (y !== null) {
         this.pointerHandler_ = getEdgeHandler(
           getOpposingPoint([extent[0], y]),
-          getOpposingPoint([extent[2], y])
+          getOpposingPoint([extent[2], y]),
         );
       }
       //no snap - new bbox
@@ -396,6 +402,7 @@ class Extent extends PointerInteraction {
   /**
    * Handle pointer drag events.
    * @param {import("../MapBrowserEvent.js").default} mapBrowserEvent Event.
+   * @override
    */
   handleDragEvent(mapBrowserEvent) {
     if (this.pointerHandler_) {
@@ -409,6 +416,7 @@ class Extent extends PointerInteraction {
    * Handle pointer up events.
    * @param {import("../MapBrowserEvent.js").default} mapBrowserEvent Event.
    * @return {boolean} If the event was consumed.
+   * @override
    */
   handleUpEvent(mapBrowserEvent) {
     this.pointerHandler_ = null;
@@ -425,6 +433,7 @@ class Extent extends PointerInteraction {
    * Subclasses may set up event handlers to get notified about changes to
    * the map here.
    * @param {import("../Map.js").default} map Map.
+   * @override
    */
   setMap(map) {
     this.extentOverlay_.setMap(map);
@@ -441,7 +450,7 @@ class Extent extends PointerInteraction {
   getExtent() {
     return toUserExtent(
       this.getExtentInternal(),
-      this.getMap().getView().getProjection()
+      this.getMap().getView().getProjection(),
     );
   }
 
@@ -506,20 +515,20 @@ function getPointHandler(fixedPoint) {
 /**
  * @param {import("../coordinate.js").Coordinate} fixedP1 first corner that will be unchanged in the new extent
  * @param {import("../coordinate.js").Coordinate} fixedP2 second corner that will be unchanged in the new extent
- * @return {function (import("../coordinate.js").Coordinate): import("../extent.js").Extent|null} event handler
+ * @return {PointerHandler|null} event handler
  */
 function getEdgeHandler(fixedP1, fixedP2) {
   if (fixedP1[0] == fixedP2[0]) {
     return function (point) {
       return boundingExtent([fixedP1, [point[0], fixedP2[1]]]);
     };
-  } else if (fixedP1[1] == fixedP2[1]) {
+  }
+  if (fixedP1[1] == fixedP2[1]) {
     return function (point) {
       return boundingExtent([fixedP1, [fixedP2[0], point[1]]]);
     };
-  } else {
-    return null;
   }
+  return null;
 }
 
 /**

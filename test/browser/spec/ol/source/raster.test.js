@@ -1,21 +1,21 @@
+import {spy as sinonSpy} from 'sinon';
 import Feature from '../../../../../src/ol/Feature.js';
-import ImageLayer from '../../../../../src/ol/layer/Image.js';
 import Map from '../../../../../src/ol/Map.js';
-import Point from '../../../../../src/ol/geom/Point.js';
-import Projection from '../../../../../src/ol/proj/Projection.js';
-import RasterSource, {
-  Processor,
-  newImageData,
-} from '../../../../../src/ol/source/Raster.js';
-import Source from '../../../../../src/ol/source/Source.js';
-import Static from '../../../../../src/ol/source/ImageStatic.js';
-import TileSource from '../../../../../src/ol/source/Tile.js';
 import TileState from '../../../../../src/ol/TileState.js';
-import VectorImageLayer from '../../../../../src/ol/layer/VectorImage.js';
-import VectorSource from '../../../../../src/ol/source/Vector.js';
 import View from '../../../../../src/ol/View.js';
+import Point from '../../../../../src/ol/geom/Point.js';
+import ImageLayer from '../../../../../src/ol/layer/Image.js';
+import VectorImageLayer from '../../../../../src/ol/layer/VectorImage.js';
+import Projection from '../../../../../src/ol/proj/Projection.js';
+import Static from '../../../../../src/ol/source/ImageStatic.js';
+import RasterSource, {Processor} from '../../../../../src/ol/source/Raster.js';
+import Source from '../../../../../src/ol/source/Source.js';
+import TileSource from '../../../../../src/ol/source/Tile.js';
+import VectorSource from '../../../../../src/ol/source/Vector.js';
 import XYZ from '../../../../../src/ol/source/XYZ.js';
-import {Circle, Fill, Style} from '../../../../../src/ol/style.js';
+import Circle from '../../../../../src/ol/style/Circle.js';
+import Fill from '../../../../../src/ol/style/Fill.js';
+import Style from '../../../../../src/ol/style/Style.js';
 
 const red =
   'data:image/gif;base64,R0lGODlhAQABAPAAAP8AAP///yH5BAAAAAAALAAAAAA' +
@@ -50,7 +50,7 @@ where('Uint8ClampedArray').describe('ol.source.Raster', function () {
     greenSource = new Static({
       url: green,
       imageExtent: extent,
-      attributions: ['green raster source'],
+      attributions: (frameState) => 'green raster source',
     });
 
     blueSource = new VectorImageLayer({
@@ -138,6 +138,54 @@ where('Uint8ClampedArray').describe('ol.source.Raster', function () {
       view.setZoom(0);
     });
 
+    it('uses resolutions from the first source where available', function () {
+      greenSource.setResolutions([100, 10, 1]);
+      const source = new RasterSource({
+        threads: 0,
+        sources: [redSource, greenSource, blueSource],
+        operation: function (inputs) {
+          return inputs[0];
+        },
+      });
+
+      expect(source.getResolutions()).to.eql([100, 10, 1]);
+    });
+
+    it('accepts a "resolutions" option', function (done) {
+      const source = new RasterSource({
+        threads: 0,
+        sources: [redSource],
+        resolutions: [1],
+        operation: function (inputs) {
+          return inputs[0];
+        },
+      });
+
+      source.on('afteroperations', function (event) {
+        expect(event.resolution).to.equal(1);
+        done();
+      });
+
+      map.getLayers().item(0).setSource(source);
+      const view = map.getView();
+      view.setCenter([0, 0]);
+      view.setZoom(0);
+    });
+
+    it('uses the view resolution when "resolutions" are set to null', function () {
+      redSource.setResolutions([100, 10, 1]);
+      const source = new RasterSource({
+        threads: 0,
+        sources: [redSource],
+        resolutions: null,
+        operation: function (inputs) {
+          return inputs[0];
+        },
+      });
+
+      expect(source.getResolutions()).to.be(null);
+    });
+
     it('disposes the processor when disposed', function () {
       const source = new RasterSource({
         threads: 0,
@@ -193,7 +241,7 @@ where('Uint8ClampedArray').describe('ol.source.Raster', function () {
         },
       });
       const blueAttributions = blue.getAttributions();
-      expect(blueAttributions()).to.be(null);
+      expect(blueAttributions()).to.eql([]);
     });
 
     it('shows single attributions', function () {
@@ -427,7 +475,7 @@ where('Uint8ClampedArray').describe('ol.source.Raster', function () {
         ],
       });
 
-      const tileCache = source.tileCache;
+      const tileCache = raster.layers_[0].getRenderer().tileCache_;
 
       expect(tileCache.getCount()).to.equal(0);
 
@@ -435,7 +483,7 @@ where('Uint8ClampedArray').describe('ol.source.Raster', function () {
         expect(tileCache.getCount()).to.equal(1);
         const state = tileCache.peekLast().getState();
         expect(state === TileState.LOADING || state === TileState.LOADED).to.be(
-          true
+          true,
         );
         done();
       });
@@ -472,7 +520,7 @@ where('Uint8ClampedArray').describe('Processor', function () {
       });
 
       const array = new Uint8ClampedArray([1, 2, 3, 4, 5, 6, 7, 8]);
-      const input = newImageData(array, 1, 2);
+      const input = new ImageData(array, 1, 2);
 
       processor.process([input], {count: 0, sum: 0}, function (err, output, m) {
         if (err) {
@@ -498,7 +546,7 @@ where('Uint8ClampedArray').describe('Processor', function () {
       });
 
       const array = new Uint8ClampedArray([1, 2, 3, 4, 5, 6, 7, 8]);
-      const input = newImageData(array, 1, 2);
+      const input = new ImageData(array, 1, 2);
 
       processor.process([input], {}, function (err, output, m) {
         if (err) {
@@ -507,7 +555,7 @@ where('Uint8ClampedArray').describe('Processor', function () {
         }
         expect(output).to.be.a(ImageData);
         expect(output.data).to.eql(
-          new Uint8ClampedArray([2, 4, 6, 8, 10, 12, 14, 16])
+          new Uint8ClampedArray([2, 4, 6, 8, 10, 12, 14, 16]),
         );
         done();
       });
@@ -539,7 +587,7 @@ where('Uint8ClampedArray').describe('Processor', function () {
       });
 
       const array = new Uint8ClampedArray([10, 2, 0, 0, 5, 8, 0, 1]);
-      const input = newImageData(array, 1, 2);
+      const input = new ImageData(array, 1, 2);
 
       processor.process([input], {}, function (err, output, m) {
         if (err) {
@@ -550,7 +598,7 @@ where('Uint8ClampedArray').describe('Processor', function () {
         const v0 = Math.round((255 * (1 + 8 / 12)) / 2);
         const v1 = Math.round((255 * (1 + -3 / 13)) / 2);
         expect(output.data).to.eql(
-          new Uint8ClampedArray([v0, v0, v0, 0, v1, v1, v1, 1])
+          new Uint8ClampedArray([v0, v0, v0, 0, v1, v1, v1, 1]),
         );
 
         done();
@@ -576,7 +624,7 @@ where('Uint8ClampedArray').describe('Processor', function () {
       }
 
       for (let i = 0; i < 5; ++i) {
-        const input = newImageData(new Uint8ClampedArray([1, 2, 3, 4]), 1, 1);
+        const input = new ImageData(new Uint8ClampedArray([1, 2, 3, 4]), 1, 1);
         processor.process([input], {}, createCallback(i));
       }
 
@@ -605,7 +653,7 @@ where('Uint8ClampedArray').describe('Processor', function () {
       }
 
       for (let i = 0; i < 5; ++i) {
-        const input = newImageData(new Uint8ClampedArray([1, 2, 3, 4]), 1, 1);
+        const input = new ImageData(new Uint8ClampedArray([1, 2, 3, 4]), 1, 1);
         processor.process([input], {}, createCallback(i));
       }
 
@@ -626,7 +674,7 @@ where('Uint8ClampedArray').describe('Processor', function () {
         operation: identity,
       });
 
-      const input = newImageData(new Uint8ClampedArray([1, 2, 3, 4]), 1, 1);
+      const input = new ImageData(new Uint8ClampedArray([1, 2, 3, 4]), 1, 1);
       processor.process([input], {}, function (err) {
         if (err) {
           done(err);
@@ -641,7 +689,7 @@ where('Uint8ClampedArray').describe('Processor', function () {
   describe('#process() - faux worker', function () {
     let identitySpy;
     beforeEach(function () {
-      identitySpy = sinon.spy(identity);
+      identitySpy = sinonSpy(identity);
     });
 
     it('calls operation with input pixels', function (done) {
@@ -651,7 +699,7 @@ where('Uint8ClampedArray').describe('Processor', function () {
       });
 
       const array = new Uint8ClampedArray([1, 2, 3, 4, 5, 6, 7, 8]);
-      const input = newImageData(array, 1, 2);
+      const input = new ImageData(array, 1, 2);
 
       processor.process([input], {}, function (err, output, m) {
         if (err) {
@@ -672,7 +720,7 @@ where('Uint8ClampedArray').describe('Processor', function () {
       });
 
       const array = new Uint8ClampedArray([1, 2, 3, 4]);
-      const input = newImageData(array, 1, 1);
+      const input = new ImageData(array, 1, 1);
       const meta = {foo: 'bar'};
 
       processor.process([input], meta, function (err, output, m) {
@@ -694,7 +742,7 @@ where('Uint8ClampedArray').describe('Processor', function () {
       });
 
       const array = new Uint8ClampedArray([1, 2, 3, 4, 5, 6, 7, 8]);
-      const input = newImageData(array, 1, 2);
+      const input = new ImageData(array, 1, 2);
 
       processor.process([input], {}, function () {
         done(new Error('Expected abort to stop callback from being called'));
@@ -713,7 +761,7 @@ where('Uint8ClampedArray').describe('Processor', function () {
       });
 
       const array = new Uint8ClampedArray([1, 2, 3, 4, 5, 6, 7, 8]);
-      const input = newImageData(array, 1, 2);
+      const input = new ImageData(array, 1, 2);
 
       processor.process([input], {}, function () {
         done(new Error('Expected abort to stop callback from being called'));

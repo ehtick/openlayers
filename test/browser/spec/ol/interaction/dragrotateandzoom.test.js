@@ -1,10 +1,10 @@
-import DragRotateAndZoom from '../../../../../src/ol/interaction/DragRotateAndZoom.js';
-import Event from '../../../../../src/ol/events/Event.js';
 import Map from '../../../../../src/ol/Map.js';
 import MapBrowserEvent from '../../../../../src/ol/MapBrowserEvent.js';
+import View from '../../../../../src/ol/View.js';
+import Event from '../../../../../src/ol/events/Event.js';
+import DragRotateAndZoom from '../../../../../src/ol/interaction/DragRotateAndZoom.js';
 import VectorLayer from '../../../../../src/ol/layer/Vector.js';
 import VectorSource from '../../../../../src/ol/source/Vector.js';
-import View from '../../../../../src/ol/View.js';
 
 describe('ol.interaction.DragRotateAndZoom', function () {
   describe('constructor', function () {
@@ -48,8 +48,7 @@ describe('ol.interaction.DragRotateAndZoom', function () {
     });
 
     afterEach(function () {
-      map.dispose();
-      document.body.removeChild(target);
+      disposeMap(map);
     });
 
     it('does not rotate when rotation is disabled on the view', function () {

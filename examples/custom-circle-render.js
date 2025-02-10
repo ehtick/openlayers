@@ -1,10 +1,12 @@
 import Feature from '../src/ol/Feature.js';
 import Map from '../src/ol/Map.js';
 import View from '../src/ol/View.js';
-import {Circle} from '../src/ol/geom.js';
-import {OSM, Vector as VectorSource} from '../src/ol/source.js';
-import {Style} from '../src/ol/style.js';
-import {Tile as TileLayer, Vector as VectorLayer} from '../src/ol/layer.js';
+import Circle from '../src/ol/geom/Circle.js';
+import TileLayer from '../src/ol/layer/Tile.js';
+import VectorLayer from '../src/ol/layer/Vector.js';
+import OSM from '../src/ol/source/OSM.js';
+import VectorSource from '../src/ol/source/Vector.js';
+import Style from '../src/ol/style/Style.js';
 
 const circleFeature = new Feature({
   geometry: new Circle([12127398.797692968, 4063894.123105166], 50),
@@ -27,7 +29,7 @@ circleFeature.setStyle(
         innerRadius,
         x,
         y,
-        outerRadius
+        outerRadius,
       );
       gradient.addColorStop(0, 'rgba(255,0,0,0)');
       gradient.addColorStop(0.6, 'rgba(255,0,0,0.2)');
@@ -41,7 +43,7 @@ circleFeature.setStyle(
       ctx.strokeStyle = 'rgba(255,0,0,1)';
       ctx.stroke();
     },
-  })
+  }),
 );
 
 new Map({

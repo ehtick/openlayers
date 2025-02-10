@@ -1,21 +1,20 @@
 import assert from 'assert';
-import frontMatter from 'front-matter';
 import fs from 'fs';
+import path, {dirname} from 'path';
+import {fileURLToPath} from 'url';
+import frontMatter from 'front-matter';
 import fse from 'fs-extra';
 import handlebars from 'handlebars';
-import path, {dirname} from 'path';
-import sources from 'webpack-sources';
-import {fileURLToPath} from 'url';
 import {marked} from 'marked';
+import sources from 'webpack-sources';
 
 const RawSource = sources.RawSource;
 const baseDir = dirname(fileURLToPath(import.meta.url));
 
 const isCssRegEx = /\.css(\?.*)?$/;
 const isJsRegEx = /\.js(\?.*)?$/;
-const importRegEx = /\s?import .*? from '([^']+)'/g;
-const isTemplateJs =
-  /\/(jquery(-\d+\.\d+\.\d+)?|(bootstrap(\.bundle)?))(\.min)?\.js(\?.*)?$/;
+const importRegEx = /\s?import (?:.*? from )?'([^']+)'/g;
+const isTemplateJs = /\/(?:bootstrap(?:\.bundle)?)(?:\.min)?\.js(?:\?.*)?$/;
 const isTemplateCss =
   /\/(?:bootstrap|fontawesome-free@[\d.]+\/css\/(?:fontawesome|brands|solid))(?:\.min)?\.css(?:\?.*)?$/;
 
@@ -30,7 +29,7 @@ function getPackageInfo() {
 
 handlebars.registerHelper(
   'md',
-  (str) => new handlebars.SafeString(marked(str))
+  (str) => new handlebars.SafeString(marked(str, {async: false})),
 );
 
 /**
@@ -60,7 +59,7 @@ handlebars.registerHelper('indent', (text, options) => {
  */
 function sortObjectByKey(obj) {
   return Object.keys(obj)
-    .sort() // sort twice to get predictable, case insensitve order
+    .sort() // sort twice to get predictable, case insensitive order
     .sort((a, b) => a.localeCompare(b, 'en', {sensitivity: 'base'}))
     .reduce((idx, tag) => {
       idx[tag] = obj[tag];
@@ -194,7 +193,7 @@ export default class ExampleBuilder {
     }
 
     const exampleData = await Promise.all(
-      names.map((name) => this.parseExample(dir, name))
+      names.map((name) => this.parseExample(dir, name)),
     );
 
     const examples = exampleData.map((data) => ({
@@ -205,7 +204,7 @@ export default class ExampleBuilder {
     }));
 
     examples.sort((a, b) =>
-      a.title.localeCompare(b.title, 'en', {sensitivity: 'base'})
+      a.title.localeCompare(b.title, 'en', {sensitivity: 'base'}),
     );
     const tagIndex = createTagIndex(examples);
     const info = {
@@ -238,7 +237,7 @@ export default class ExampleBuilder {
         for (const file in newAssets) {
           assets[file] = new RawSource(newAssets[file]);
         }
-      })
+      }),
     );
 
     const indexSource = `const info = ${JSON.stringify(info)};`;
@@ -250,7 +249,7 @@ export default class ExampleBuilder {
     const htmlPath = path.join(dir, htmlName);
     const htmlSource = await fse.readFile(htmlPath, {encoding: 'utf8'});
     const {attributes: data, body} = frontMatter(
-      this.ensureNewLineAtEnd(htmlSource)
+      this.ensureNewLineAtEnd(htmlSource),
     );
     assert(!!data.layout, `missing layout in ${htmlPath}`);
     return Object.assign(data, {
@@ -281,11 +280,13 @@ export default class ExampleBuilder {
   transformJsSource(source) {
     return (
       source
-        // remove "../src/" prefix and ".js" to have the same import syntax as the documentation
-        .replace(/'\.\.\/src\//g, "'")
-        .replace(/\.js';/g, "';")
+        // remove "../src/" prefix to have the same import syntax as the documentation
+        .replaceAll(
+          /(["'])(\.\.\/src\/ol\/[^"']+\.js)\1/g,
+          (full, quote, path) => "'" + path.slice(7) + "'",
+        )
         // Remove worker loader import and modify `new Worker()` to add source
-        .replace(/import Worker from 'worker-loader![^\n]*\n/g, '')
+        .replaceAll(/import Worker from 'worker-loader![^\n]*\n/g, '')
         .replace('new Worker()', "new Worker('./worker.js', {type: 'module'})")
     );
   }
@@ -341,7 +342,7 @@ export default class ExampleBuilder {
             source: source,
             type: ext,
           };
-        })
+        }),
       );
     }
 
@@ -351,8 +352,7 @@ export default class ExampleBuilder {
         name: data.name,
         dependencies: getDependencies(jsSources, pkg),
         devDependencies: {
-          vite: '^3.0.3',
-          '@babel/core': 'latest',
+          vite: '^3.2.3',
         },
         scripts: {
           start: 'vite',
@@ -360,7 +360,7 @@ export default class ExampleBuilder {
         },
       },
       null,
-      2
+      2,
     );
 
     data.css = {
@@ -387,7 +387,7 @@ export default class ExampleBuilder {
           data.css.remote.push(absoluteUrl);
         } else {
           throw new Error(
-            `Invalid resource: '${resource}' is not .js or .css: ${data.filename}`
+            `Invalid resource: '${resource}' is not .js or .css: ${data.filename}`,
           );
         }
       });
@@ -402,7 +402,7 @@ export default class ExampleBuilder {
       assets[cssName] = await fse.readFile(cssPath, readOptions);
       data.css.local.push(cssName);
       data.css.source = this.ensureNewLineAtEnd(assets[cssName]);
-    } catch (err) {
+    } catch {
       // pass, no css for this example
     }
 

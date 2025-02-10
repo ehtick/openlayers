@@ -1,6 +1,9 @@
+import Map from '../../../../../src/ol/Map.js';
+import View from '../../../../../src/ol/View.js';
 import TileLayer from '../../../../../src/ol/layer/Tile.js';
-import {Map, View} from '../../../../../src/ol/index.js';
-import {OSM, TileWMS, XYZ} from '../../../../../src/ol/source.js';
+import OSM from '../../../../../src/ol/source/OSM.js';
+import TileWMS from '../../../../../src/ol/source/TileWMS.js';
+import XYZ from '../../../../../src/ol/source/XYZ.js';
 
 describe('ol/layer/Tile', function () {
   describe('constructor (defaults)', function () {
@@ -56,8 +59,7 @@ describe('ol/layer/Tile', function () {
     });
 
     afterEach(() => {
-      map.setTarget(null);
-      document.body.removeChild(target);
+      disposeMap(map);
     });
 
     it('gets pixel data', () => {
@@ -68,6 +70,33 @@ describe('ol/layer/Tile', function () {
       expect(data[1]).to.be(208);
       expect(data[2]).to.be(208);
       expect(data[3]).to.be(255);
+    });
+
+    it('gets reprojected pixel data', (done) => {
+      layer.setSource(
+        new XYZ({
+          url: 'spec/ol/data/osm-0-0-0.png',
+          maxZoom: 0,
+          interpolate: false,
+        }),
+      );
+      map.setView(
+        new View({
+          center: [0, 0],
+          zoom: 1,
+          projection: 'EPSG:4326',
+        }),
+      );
+      map.once('rendercomplete', () => {
+        const data = layer.getData([50, 50]);
+        expect(data).to.be.a(Uint8ClampedArray);
+        expect(data.length).to.be(4);
+        expect(data[0]).to.be(181);
+        expect(data[1]).to.be(208);
+        expect(data[2]).to.be(208);
+        expect(data[3]).to.be(255);
+        done();
+      });
     });
 
     it('gets pixel data', () => {
@@ -110,8 +139,7 @@ describe('ol/layer/Tile', function () {
     });
 
     afterEach(() => {
-      map.setTarget(null);
-      document.body.removeChild(target);
+      disposeMap(map);
     });
 
     it('gets pixel data', () => {
@@ -174,8 +202,7 @@ describe('ol/layer/Tile', function () {
     });
 
     afterEach(function () {
-      map.dispose();
-      document.body.removeChild(target);
+      disposeMap(map);
     });
 
     it('sets frameState.animate to false when opacity is 1', function (done) {

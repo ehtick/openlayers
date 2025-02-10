@@ -1,46 +1,47 @@
 /**
  * @module ol/Map
  */
-import BaseObject from './Object.js';
 import Collection from './Collection.js';
 import CollectionEventType from './CollectionEventType.js';
-import CompositeMapRenderer from './renderer/Composite.js';
-import EventType from './events/EventType.js';
-import Layer from './layer/Layer.js';
-import LayerGroup, {GroupEvent} from './layer/Group.js';
 import MapBrowserEvent from './MapBrowserEvent.js';
 import MapBrowserEventHandler from './MapBrowserEventHandler.js';
 import MapBrowserEventType from './MapBrowserEventType.js';
 import MapEvent from './MapEvent.js';
 import MapEventType from './MapEventType.js';
 import MapProperty from './MapProperty.js';
+import BaseObject from './Object.js';
 import ObjectEventType from './ObjectEventType.js';
-import PointerEventType from './pointer/EventType.js';
-import RenderEventType from './render/EventType.js';
 import TileQueue, {getTilePriority} from './TileQueue.js';
 import View from './View.js';
 import ViewHint from './ViewHint.js';
-import {DEVICE_PIXEL_RATIO, PASSIVE_EVENT_LISTENERS} from './has.js';
+import {equals} from './array.js';
+import {assert} from './asserts.js';
+import {warn} from './console.js';
+import {defaults as defaultControls} from './control/defaults.js';
+import EventType from './events/EventType.js';
+import {listen, unlistenByKey} from './events.js';
+import {
+  clone,
+  createOrUpdateEmpty,
+  equals as equalsExtent,
+  getForViewAndSize,
+  isEmpty,
+} from './extent.js';
 import {TRUE} from './functions.js';
+import {DEVICE_PIXEL_RATIO, PASSIVE_EVENT_LISTENERS} from './has.js';
+import {defaults as defaultInteractions} from './interaction/defaults.js';
+import LayerGroup, {GroupEvent} from './layer/Group.js';
+import Layer from './layer/Layer.js';
+import PointerEventType from './pointer/EventType.js';
+import {fromUserCoordinate, toUserCoordinate} from './proj.js';
+import RenderEventType from './render/EventType.js';
+import CompositeMapRenderer from './renderer/Composite.js';
+import {hasArea} from './size.js';
 import {
   apply as applyTransform,
   create as createTransform,
 } from './transform.js';
-import {assert} from './asserts.js';
-import {
-  clone,
-  createOrUpdateEmpty,
-  equals,
-  getForViewAndSize,
-  isEmpty,
-} from './extent.js';
-import {defaults as defaultControls} from './control/defaults.js';
-import {defaults as defaultInteractions} from './interaction/defaults.js';
-import {fromUserCoordinate, toUserCoordinate} from './proj.js';
 import {getUid} from './util.js';
-import {hasArea} from './size.js';
-import {listen, unlistenByKey} from './events.js';
-import {removeNode} from './dom.js';
 
 /**
  * State of the current frame. Only `pixelRatio`, `time` and `viewState` should
@@ -51,8 +52,10 @@ import {removeNode} from './dom.js';
  * @property {import("./View.js").State} viewState The state of the current view.
  * @property {boolean} animate Animate.
  * @property {import("./transform.js").Transform} coordinateToPixelTransform CoordinateToPixelTransform.
- * @property {import("rbush").default} declutterTree DeclutterTree.
- * @property {null|import("./extent.js").Extent} extent Extent.
+ * @property {Object<string, import("rbush").default<import('./render/canvas/Executor.js').DeclutterEntry>>|null} declutter
+ * Declutter trees by declutter group.
+ * When null, no decluttering is needed because no layers have decluttering enabled.
+ * @property {null|import("./extent.js").Extent} extent Extent (in view projection coordinates).
  * @property {import("./extent.js").Extent} [nextExtent] Next extent during an animation series.
  * @property {number} index Index.
  * @property {Array<import("./layer/Layer.js").State>} layerStatesArray LayerStatesArray.
@@ -69,7 +72,7 @@ import {removeNode} from './dom.js';
  */
 
 /**
- * @typedef {function(Map, ?FrameState): any} PostRenderFunction
+ * @typedef {function(Map, FrameState): any} PostRenderFunction
  */
 
 /**
@@ -145,6 +148,10 @@ import {removeNode} from './dom.js';
  * element itself or the `id` of the element. If not specified at construction
  * time, {@link module:ol/Map~Map#setTarget} must be called for the map to be
  * rendered. If passed by element, the container can be in a secondary document.
+ * For accessibility (focus and keyboard events for map navigation), the `target` element must have a
+ *  properly configured `tabindex` attribute. If the `target` element is inside a Shadow DOM, the
+ *  `tabindex` atribute must be set on the custom element's host element.
+ * **Note:** CSS `transform` support for the target element is limited to `scale`.
  * @property {View|Promise<import("./View.js").ViewOptions>} [view] The map's view.  No layer sources will be
  * fetched unless this is specified at construction time or through
  * {@link module:ol/Map~Map#setView}.
@@ -185,10 +192,10 @@ function setLayerMapProperty(layer, map) {
  * The map is the core component of OpenLayers. For a map to render, a view,
  * one or more layers, and a target container are needed:
  *
- *     import Map from 'ol/Map';
- *     import View from 'ol/View';
- *     import TileLayer from 'ol/layer/Tile';
- *     import OSM from 'ol/source/OSM';
+ *     import Map from 'ol/Map.js';
+ *     import View from 'ol/View.js';
+ *     import TileLayer from 'ol/layer/Tile.js';
+ *     import OSM from 'ol/source/OSM.js';
  *
  *     const map = new Map({
  *       view: new View({
@@ -260,9 +267,9 @@ class Map extends BaseObject {
 
     /**
      * @private
-     * @type {boolean|undefined}
+     * @type {boolean}
      */
-    this.renderComplete_;
+    this.renderComplete_ = false;
 
     /**
      * @private
@@ -291,7 +298,7 @@ class Map extends BaseObject {
 
     /**
      * @private
-     * @type {*}
+     * @type {ReturnType<typeof setTimeout>}
      */
     this.postRenderTimeoutHandle_;
 
@@ -418,6 +425,18 @@ class Map extends BaseObject {
     this.targetChangeHandlerKeys_ = null;
 
     /**
+     * @private
+     * @type {HTMLElement|null}
+     */
+    this.targetElement_ = null;
+
+    /**
+     * @private
+     * @type {ResizeObserver}
+     */
+    this.resizeObserver_ = new ResizeObserver(() => this.updateSize());
+
+    /**
      * @type {Collection<import("./control/Control.js").default>}
      * @protected
      */
@@ -464,12 +483,12 @@ class Map extends BaseObject {
      */
     this.tileQueue_ = new TileQueue(
       this.getTilePriority.bind(this),
-      this.handleTileChange_.bind(this)
+      this.handleTileChange_.bind(this),
     );
 
     this.addChangeListener(
       MapProperty.LAYERGROUP,
-      this.handleLayerGroupChanged_
+      this.handleLayerGroupChanged_,
     );
     this.addChangeListener(MapProperty.VIEW, this.handleViewChanged_);
     this.addChangeListener(MapProperty.SIZE, this.handleSizeChanged_);
@@ -491,9 +510,9 @@ class Map extends BaseObject {
       /**
        * @param {import("./Collection.js").CollectionEvent<import("./control/Control.js").default>} event CollectionEvent
        */
-      function (event) {
+      (event) => {
         event.element.setMap(this);
-      }.bind(this)
+      },
     );
 
     this.controls.addEventListener(
@@ -501,9 +520,9 @@ class Map extends BaseObject {
       /**
        * @param {import("./Collection.js").CollectionEvent<import("./control/Control.js").default>} event CollectionEvent.
        */
-      function (event) {
+      (event) => {
         event.element.setMap(null);
-      }.bind(this)
+      },
     );
 
     this.interactions.addEventListener(
@@ -511,9 +530,9 @@ class Map extends BaseObject {
       /**
        * @param {import("./Collection.js").CollectionEvent<import("./interaction/Interaction.js").default>} event CollectionEvent.
        */
-      function (event) {
+      (event) => {
         event.element.setMap(this);
-      }.bind(this)
+      },
     );
 
     this.interactions.addEventListener(
@@ -521,9 +540,9 @@ class Map extends BaseObject {
       /**
        * @param {import("./Collection.js").CollectionEvent<import("./interaction/Interaction.js").default>} event CollectionEvent.
        */
-      function (event) {
+      (event) => {
         event.element.setMap(null);
-      }.bind(this)
+      },
     );
 
     this.overlays_.addEventListener(
@@ -531,9 +550,9 @@ class Map extends BaseObject {
       /**
        * @param {import("./Collection.js").CollectionEvent<import("./Overlay.js").default>} event CollectionEvent.
        */
-      function (event) {
+      (event) => {
         this.addOverlayInternal_(event.element);
-      }.bind(this)
+      },
     );
 
     this.overlays_.addEventListener(
@@ -541,33 +560,31 @@ class Map extends BaseObject {
       /**
        * @param {import("./Collection.js").CollectionEvent<import("./Overlay.js").default>} event CollectionEvent.
        */
-      function (event) {
+      (event) => {
         const id = event.element.getId();
         if (id !== undefined) {
           delete this.overlayIdIndex_[id.toString()];
         }
         event.element.setMap(null);
-      }.bind(this)
+      },
     );
 
     this.controls.forEach(
       /**
        * @param {import("./control/Control.js").default} control Control.
-       * @this {Map}
        */
-      function (control) {
+      (control) => {
         control.setMap(this);
-      }.bind(this)
+      },
     );
 
     this.interactions.forEach(
       /**
        * @param {import("./interaction/Interaction.js").default} interaction Interaction.
-       * @this {Map}
        */
-      function (interaction) {
+      (interaction) => {
         interaction.setMap(this);
-      }.bind(this)
+      },
     );
 
     this.overlays_.forEach(this.addOverlayInternal_.bind(this));
@@ -640,11 +657,13 @@ class Map extends BaseObject {
   /**
    *
    * Clean up.
+   * @override
    */
   disposeInternal() {
     this.controls.clear();
     this.interactions.clear();
     this.overlays_.clear();
+    this.resizeObserver_.disconnect();
     this.setTarget(null);
     super.disposeInternal();
   }
@@ -686,7 +705,7 @@ class Map extends BaseObject {
       callback,
       null,
       layerFilter,
-      null
+      null,
     );
   }
 
@@ -705,7 +724,7 @@ class Map extends BaseObject {
       function (feature) {
         features.push(feature);
       },
-      options
+      options,
     );
     return features;
   }
@@ -755,7 +774,7 @@ class Map extends BaseObject {
       hitTolerance,
       checkWrapped,
       layerFilter,
-      null
+      null,
     );
   }
 
@@ -780,12 +799,16 @@ class Map extends BaseObject {
 
   /**
    * Returns the map pixel position for a browser event relative to the viewport.
-   * @param {UIEvent} event Event.
+   * @param {UIEvent|{clientX: number, clientY: number}} event Event.
    * @return {import("./pixel.js").Pixel} Pixel.
    * @api
    */
   getEventPixel(event) {
-    const viewportPosition = this.viewport_.getBoundingClientRect();
+    const viewport = this.viewport_;
+    const viewportPosition = viewport.getBoundingClientRect();
+    const viewportSize = this.getSize();
+    const scaleX = viewportPosition.width / viewportSize[0];
+    const scaleY = viewportPosition.height / viewportSize[1];
     const eventPosition =
       //FIXME Are we really calling this with a TouchEvent anywhere?
       'changedTouches' in event
@@ -793,8 +816,8 @@ class Map extends BaseObject {
         : /** @type {MouseEvent} */ (event);
 
     return [
-      eventPosition.clientX - viewportPosition.left,
-      eventPosition.clientY - viewportPosition.top,
+      (eventPosition.clientX - viewportPosition.left) / scaleX,
+      (eventPosition.clientY - viewportPosition.top) / scaleY,
     ];
   }
 
@@ -821,14 +844,7 @@ class Map extends BaseObject {
    * @api
    */
   getTargetElement() {
-    const target = this.getTarget();
-    if (target !== undefined) {
-      return typeof target === 'string'
-        ? document.getElementById(target)
-        : target;
-    } else {
-      return null;
-    }
+    return this.targetElement_;
   }
 
   /**
@@ -841,7 +857,7 @@ class Map extends BaseObject {
   getCoordinateFromPixel(pixel) {
     return toUserCoordinate(
       this.getCoordinateFromPixelInternal(pixel),
-      this.getView().getProjection()
+      this.getView().getProjection(),
     );
   }
 
@@ -855,12 +871,8 @@ class Map extends BaseObject {
     const frameState = this.frameState_;
     if (!frameState) {
       return null;
-    } else {
-      return applyTransform(
-        frameState.pixelToCoordinateTransform,
-        pixel.slice()
-      );
     }
+    return applyTransform(frameState.pixelToCoordinateTransform, pixel.slice());
   }
 
   /**
@@ -888,7 +900,7 @@ class Map extends BaseObject {
    * Note that the index treats string and numeric identifiers as the same. So
    * `map.getOverlayById(2)` will return an overlay with id `'2'` or `2`.
    * @param {string|number} id Overlay identifier.
-   * @return {import("./Overlay.js").default} Overlay.
+   * @return {import("./Overlay.js").default|null} Overlay.
    * @api
    */
   getOverlayById(id) {
@@ -977,7 +989,7 @@ class Map extends BaseObject {
   getPixelFromCoordinate(coordinate) {
     const viewCoordinate = fromUserCoordinate(
       coordinate,
-      this.getView().getProjection()
+      this.getView().getProjection(),
     );
     return this.getPixelFromCoordinateInternal(viewCoordinate);
   }
@@ -992,12 +1004,11 @@ class Map extends BaseObject {
     const frameState = this.frameState_;
     if (!frameState) {
       return null;
-    } else {
-      return applyTransform(
-        frameState.coordinateToPixelTransform,
-        coordinate.slice(0, 2)
-      );
     }
+    return applyTransform(
+      frameState.coordinateToPixelTransform,
+      coordinate.slice(0, 2),
+    );
   }
 
   /**
@@ -1083,7 +1094,7 @@ class Map extends BaseObject {
       tile,
       tileSourceKey,
       tileCenter,
-      tileResolution
+      tileResolution,
     );
   }
 
@@ -1120,6 +1131,15 @@ class Map extends BaseObject {
         ? this.viewport_.getRootNode()
         : doc;
       const target = /** @type {Node} */ (originalEvent.target);
+
+      const currentDoc =
+        rootNode instanceof ShadowRoot
+          ? rootNode.host === target
+            ? rootNode.host.ownerDocument
+            : rootNode
+          : rootNode === doc
+            ? doc.documentElement
+            : rootNode;
       if (
         // Abort if the target is a child of the container for elements whose events are not meant
         // to be handled by map interactions.
@@ -1128,7 +1148,7 @@ class Map extends BaseObject {
         // It's possible for the target to no longer be in the page if it has been removed in an
         // event listener, this might happen in a Control that recreates it's content based on
         // user interaction either manually or via a render in something like https://reactjs.org/
-        !(rootNode === doc ? doc.documentElement : rootNode).contains(target)
+        !currentDoc.contains(target)
       ) {
         return;
       }
@@ -1187,30 +1207,32 @@ class Map extends BaseObject {
     }
 
     if (frameState && this.renderer_ && !frameState.animate) {
-      if (this.renderComplete_ === true) {
+      if (this.renderComplete_) {
         if (this.hasListener(RenderEventType.RENDERCOMPLETE)) {
           this.renderer_.dispatchRenderEvent(
             RenderEventType.RENDERCOMPLETE,
-            frameState
+            frameState,
           );
         }
         if (this.loaded_ === false) {
           this.loaded_ = true;
           this.dispatchEvent(
-            new MapEvent(MapEventType.LOADEND, this, frameState)
+            new MapEvent(MapEventType.LOADEND, this, frameState),
           );
         }
       } else if (this.loaded_ === true) {
         this.loaded_ = false;
         this.dispatchEvent(
-          new MapEvent(MapEventType.LOADSTART, this, frameState)
+          new MapEvent(MapEventType.LOADSTART, this, frameState),
         );
       }
     }
 
     const postRenderFunctions = this.postRenderFunctions_;
-    for (let i = 0, ii = postRenderFunctions.length; i < ii; ++i) {
-      postRenderFunctions[i](this, frameState);
+    if (frameState) {
+      for (let i = 0, ii = postRenderFunctions.length; i < ii; ++i) {
+        postRenderFunctions[i](this, frameState);
+      }
     }
     postRenderFunctions.length = 0;
   }
@@ -1237,15 +1259,24 @@ class Map extends BaseObject {
       this.targetChangeHandlerKeys_ = null;
       this.viewport_.removeEventListener(
         EventType.CONTEXTMENU,
-        this.boundHandleBrowserEvent_
+        this.boundHandleBrowserEvent_,
       );
       this.viewport_.removeEventListener(
         EventType.WHEEL,
-        this.boundHandleBrowserEvent_
+        this.boundHandleBrowserEvent_,
       );
       this.mapBrowserEventHandler_.dispose();
       this.mapBrowserEventHandler_ = null;
-      removeNode(this.viewport_);
+      this.viewport_.remove();
+    }
+
+    if (this.targetElement_) {
+      this.resizeObserver_.unobserve(this.targetElement_);
+      const rootNode = this.targetElement_.getRootNode();
+      if (rootNode instanceof ShadowRoot) {
+        this.resizeObserver_.unobserve(rootNode.host);
+      }
+      this.setSize(undefined);
     }
 
     // target may be undefined, null, a string or an Element.
@@ -1253,7 +1284,10 @@ class Map extends BaseObject {
     // If it's not now an Element we remove the viewport from the DOM.
     // If it's an Element we append the viewport element to it.
 
-    const targetElement = this.getTargetElement();
+    const target = this.getTarget();
+    const targetElement =
+      typeof target === 'string' ? document.getElementById(target) : target;
+    this.targetElement_ = targetElement;
     if (!targetElement) {
       if (this.renderer_) {
         clearTimeout(this.postRenderTimeoutHandle_);
@@ -1274,44 +1308,55 @@ class Map extends BaseObject {
 
       this.mapBrowserEventHandler_ = new MapBrowserEventHandler(
         this,
-        this.moveTolerance_
+        this.moveTolerance_,
       );
       for (const key in MapBrowserEventType) {
         this.mapBrowserEventHandler_.addEventListener(
           MapBrowserEventType[key],
-          this.handleMapBrowserEvent.bind(this)
+          this.handleMapBrowserEvent.bind(this),
         );
       }
       this.viewport_.addEventListener(
         EventType.CONTEXTMENU,
         this.boundHandleBrowserEvent_,
-        false
+        false,
       );
       this.viewport_.addEventListener(
         EventType.WHEEL,
         this.boundHandleBrowserEvent_,
-        PASSIVE_EVENT_LISTENERS ? {passive: false} : false
+        PASSIVE_EVENT_LISTENERS ? {passive: false} : false,
       );
 
-      const defaultView = this.getOwnerDocument().defaultView;
-      const keyboardEventTarget = !this.keyboardEventTarget_
-        ? targetElement
-        : this.keyboardEventTarget_;
+      let keyboardEventTarget;
+      if (!this.keyboardEventTarget_) {
+        // check if map target is in shadowDOM, if yes use host element as target
+        const targetRoot = targetElement.getRootNode();
+        const targetCandidate =
+          targetRoot instanceof ShadowRoot ? targetRoot.host : targetElement;
+        keyboardEventTarget = targetCandidate;
+      } else {
+        keyboardEventTarget = this.keyboardEventTarget_;
+      }
+
       this.targetChangeHandlerKeys_ = [
         listen(
           keyboardEventTarget,
           EventType.KEYDOWN,
           this.handleBrowserEvent,
-          this
+          this,
         ),
         listen(
           keyboardEventTarget,
           EventType.KEYPRESS,
           this.handleBrowserEvent,
-          this
+          this,
         ),
-        listen(defaultView, EventType.RESIZE, this.updateSize, this),
       ];
+      const rootNode = targetElement.getRootNode();
+      if (rootNode instanceof ShadowRoot) {
+        this.resizeObserver_.observe(rootNode.host);
+      }
+      this.resizeObserver_.observe(targetElement);
     }
 
     this.updateSize();
@@ -1347,19 +1392,19 @@ class Map extends BaseObject {
     }
     const view = this.getView();
     if (view) {
-      this.updateViewportSize_();
+      this.updateViewportSize_(this.getSize());
 
       this.viewPropertyListenerKey_ = listen(
         view,
         ObjectEventType.PROPERTYCHANGE,
         this.handleViewPropertyChanged_,
-        this
+        this,
       );
       this.viewChangeListenerKey_ = listen(
         view,
         EventType.CHANGE,
         this.handleViewPropertyChanged_,
-        this
+        this,
       );
 
       view.resolveConstraints(0);
@@ -1502,18 +1547,18 @@ class Map extends BaseObject {
     let frameState = null;
     if (size !== undefined && hasArea(size) && view && view.isDef()) {
       const viewHints = view.getHints(
-        this.frameState_ ? this.frameState_.viewHints : undefined
+        this.frameState_ ? this.frameState_.viewHints : undefined,
       );
       const viewState = view.getState();
       frameState = {
         animate: false,
         coordinateToPixelTransform: this.coordinateToPixelTransform_,
-        declutterTree: null,
+        declutter: null,
         extent: getForViewAndSize(
           viewState.center,
           viewState.resolution,
           viewState.rotation,
-          size
+          size,
         ),
         index: this.frameIndex_++,
         layerIndex: 0,
@@ -1540,7 +1585,7 @@ class Map extends BaseObject {
           viewState.nextCenter,
           viewState.nextResolution,
           rotation,
-          size
+          size,
         );
       }
     }
@@ -1554,17 +1599,17 @@ class Map extends BaseObject {
       }
       Array.prototype.push.apply(
         this.postRenderFunctions_,
-        frameState.postRenderFunctions
+        frameState.postRenderFunctions,
       );
 
       if (previousFrameState) {
         const moveStart =
           !this.previousExtent_ ||
           (!isEmpty(this.previousExtent_) &&
-            !equals(frameState.extent, this.previousExtent_));
+            !equalsExtent(frameState.extent, this.previousExtent_));
         if (moveStart) {
           this.dispatchEvent(
-            new MapEvent(MapEventType.MOVESTART, this, previousFrameState)
+            new MapEvent(MapEventType.MOVESTART, this, previousFrameState),
           );
           this.previousExtent_ = createOrUpdateEmpty(this.previousExtent_);
         }
@@ -1574,11 +1619,11 @@ class Map extends BaseObject {
         this.previousExtent_ &&
         !frameState.viewHints[ViewHint.ANIMATING] &&
         !frameState.viewHints[ViewHint.INTERACTING] &&
-        !equals(frameState.extent, this.previousExtent_);
+        !equalsExtent(frameState.extent, this.previousExtent_);
 
       if (idle) {
         this.dispatchEvent(
-          new MapEvent(MapEventType.MOVEEND, this, frameState)
+          new MapEvent(MapEventType.MOVEEND, this, frameState),
         );
         clone(frameState.extent, this.previousExtent_);
       }
@@ -1587,13 +1632,12 @@ class Map extends BaseObject {
     this.dispatchEvent(new MapEvent(MapEventType.POSTRENDER, this, frameState));
 
     this.renderComplete_ =
-      this.hasListener(MapEventType.LOADSTART) ||
-      this.hasListener(MapEventType.LOADEND) ||
-      this.hasListener(RenderEventType.RENDERCOMPLETE)
-        ? !this.tileQueue_.getTilesLoading() &&
-          !this.tileQueue_.getCount() &&
-          !this.getLoadingOrNotReady()
-        : undefined;
+      (this.hasListener(MapEventType.LOADSTART) ||
+        this.hasListener(MapEventType.LOADEND) ||
+        this.hasListener(RenderEventType.RENDERCOMPLETE)) &&
+      !this.tileQueue_.getTilesLoading() &&
+      !this.tileQueue_.getCount() &&
+      !this.getLoadingOrNotReady();
 
     if (!this.postRenderTimeoutHandle_) {
       this.postRenderTimeoutHandle_ = setTimeout(() => {
@@ -1629,6 +1673,9 @@ class Map extends BaseObject {
 
   /**
    * Set the target element to render this map into.
+   * For accessibility (focus and keyboard events for map navigation), the `target` element must have a
+   *  properly configured `tabindex` attribute. If the `target` element is inside a Shadow DOM, the
+   *  `tabindex` atribute must be set on the custom element's host element.
    * @param {HTMLElement|string} [target] The Element or id of the Element
    *     that the map is rendered in.
    * @observable
@@ -1684,7 +1731,7 @@ class Map extends BaseObject {
         parseFloat(computedStyle['paddingBottom']) -
         parseFloat(computedStyle['borderBottomWidth']);
       if (!isNaN(width) && !isNaN(height)) {
-        size = [width, height];
+        size = [Math.max(0, width), Math.max(0, height)];
         if (
           !hasArea(size) &&
           !!(
@@ -1693,33 +1740,28 @@ class Map extends BaseObject {
             targetElement.getClientRects().length
           )
         ) {
-          // eslint-disable-next-line
-          console.warn(
-            "No map visible because the map container's width or height are 0."
+          warn(
+            "No map visible because the map container's width or height are 0.",
           );
         }
       }
     }
 
-    this.setSize(size);
-    this.updateViewportSize_();
+    const oldSize = this.getSize();
+    if (size && (!oldSize || !equals(size, oldSize))) {
+      this.setSize(size);
+      this.updateViewportSize_(size);
+    }
   }
 
   /**
    * Recomputes the viewport size and save it on the view object (if any)
+   * @param {import("./size.js").Size|undefined} size The size.
    * @private
    */
-  updateViewportSize_() {
+  updateViewportSize_(size) {
     const view = this.getView();
     if (view) {
-      let size = undefined;
-      const computedStyle = getComputedStyle(this.viewport_);
-      if (computedStyle.width && computedStyle.height) {
-        size = [
-          parseInt(computedStyle.width, 10),
-          parseInt(computedStyle.height, 10),
-        ];
-      }
       view.setViewportSize(size);
     }
   }
@@ -1771,8 +1813,8 @@ function createOptionsInternal(options) {
     } else {
       assert(
         typeof (/** @type {?} */ (options.controls).getArray) === 'function',
-        47
-      ); // Expected `controls` to be an array or an `import("./Collection.js").Collection`
+        'Expected `controls` to be an array or an `ol/Collection.js`',
+      );
       controls = options.controls;
     }
   }
@@ -1786,8 +1828,8 @@ function createOptionsInternal(options) {
       assert(
         typeof (/** @type {?} */ (options.interactions).getArray) ===
           'function',
-        48
-      ); // Expected `interactions` to be an array or an `import("./Collection.js").Collection`
+        'Expected `interactions` to be an array or an `ol/Collection.js`',
+      );
       interactions = options.interactions;
     }
   }
@@ -1800,8 +1842,8 @@ function createOptionsInternal(options) {
     } else {
       assert(
         typeof (/** @type {?} */ (options.overlays).getArray) === 'function',
-        49
-      ); // Expected `overlays` to be an array or an `import("./Collection.js").Collection`
+        'Expected `overlays` to be an array or an `ol/Collection.js`',
+      );
       overlays = options.overlays;
     }
   } else {

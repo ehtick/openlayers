@@ -1,14 +1,16 @@
-import Graticule from '../src/ol/layer/Graticule.js';
-import Map from '../src/ol/Map.js';
-import OSM from '../src/ol/source/OSM.js';
-import Stroke from '../src/ol/style/Stroke.js';
-import TileDebug from '../src/ol/source/TileDebug.js';
-import TileLayer from '../src/ol/layer/Tile.js';
-import View from '../src/ol/View.js';
 import proj4 from 'proj4';
+import Map from '../src/ol/Map.js';
+import View from '../src/ol/View.js';
 import {applyTransform} from '../src/ol/extent.js';
-import {get as getProjection, getTransform} from '../src/ol/proj.js';
+import Graticule from '../src/ol/layer/Graticule.js';
+import TileLayer from '../src/ol/layer/Tile.js';
 import {register} from '../src/ol/proj/proj4.js';
+import {get as getProjection, getTransform} from '../src/ol/proj.js';
+import OSM from '../src/ol/source/OSM.js';
+import TileDebug from '../src/ol/source/TileDebug.js';
+import Stroke from '../src/ol/style/Stroke.js';
+
+const key = 'get_your_own_D6rA4zTHduk6KOKTXzGB';
 
 const osmSource = new OSM();
 
@@ -63,28 +65,26 @@ function setProjection(code, name, proj4def, bbox) {
         projection: 'EPSG:3857',
         center: [0, 0],
         zoom: 1,
-      })
+      }),
     );
     return;
   }
 
   resultSpan.innerHTML = '(' + code + ') ' + name;
 
-  const newProjCode = 'EPSG:' + code;
-  proj4.defs(newProjCode, proj4def);
+  proj4.defs(code, proj4def);
   register(proj4);
-  const newProj = getProjection(newProjCode);
+  const newProj = getProjection(code);
   const fromLonLat = getTransform('EPSG:4326', newProj);
 
-  let worldExtent = [bbox[1], bbox[2], bbox[3], bbox[0]];
-  newProj.setWorldExtent(worldExtent);
+  newProj.setWorldExtent(bbox);
 
   // approximate calculation of projection extent,
   // checking if the world extent crosses the dateline
-  if (bbox[1] > bbox[3]) {
-    worldExtent = [bbox[1], bbox[2], bbox[3] + 360, bbox[0]];
+  if (bbox[0] > bbox[2]) {
+    bbox[2] += 360;
   }
-  const extent = applyTransform(worldExtent, fromLonLat, undefined, 8);
+  const extent = applyTransform(bbox, fromLonLat, undefined, 8);
   newProj.setExtent(extent);
   const newView = new View({
     projection: newProj,
@@ -95,7 +95,9 @@ function setProjection(code, name, proj4def, bbox) {
 
 function search(query) {
   resultSpan.innerHTML = 'Searching ...';
-  fetch('https://epsg.io/?format=json&q=' + query)
+  fetch(
+    `https://api.maptiler.com/coordinates/search/${query}.json?exports=true&key=${key}`,
+  )
     .then(function (response) {
       return response.json();
     })
@@ -105,9 +107,10 @@ function search(query) {
         for (let i = 0, ii = results.length; i < ii; i++) {
           const result = results[i];
           if (result) {
-            const code = result['code'];
+            const id = result['id'];
+            const code = id['authority'] + ':' + id['code'];
             const name = result['name'];
-            const proj4def = result['proj4'];
+            const proj4def = result['exports']['wkt'];
             const bbox = result['bbox'];
             if (
               code &&
@@ -139,12 +142,19 @@ searchButton.onclick = function (event) {
 /**
  * Handle checkbox change events.
  */
-renderEdgesCheckbox.onchange = function () {
+function onReprojectionChange() {
   osmSource.setRenderReprojectionEdges(renderEdgesCheckbox.checked);
-};
-showTilesCheckbox.onchange = function () {
-  debugLayer.setVisible(showTilesCheckbox.checked);
-};
-showGraticuleCheckbox.onchange = function () {
+}
+function onGraticuleChange() {
   graticule.setVisible(showGraticuleCheckbox.checked);
-};
+}
+function onTilesChange() {
+  debugLayer.setVisible(showTilesCheckbox.checked);
+}
+showGraticuleCheckbox.addEventListener('change', onGraticuleChange);
+renderEdgesCheckbox.addEventListener('change', onReprojectionChange);
+showTilesCheckbox.addEventListener('change', onTilesChange);
+
+onReprojectionChange();
+onGraticuleChange();
+onTilesChange();

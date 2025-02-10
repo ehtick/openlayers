@@ -1,16 +1,16 @@
 /**
  * @module ol/render
  */
-import CanvasImmediateRenderer from './render/canvas/Immediate.js';
 import {DEVICE_PIXEL_RATIO} from './has.js';
+import {getTransformFromProjections, getUserProjection} from './proj.js';
+import CanvasImmediateRenderer from './render/canvas/Immediate.js';
+import {getSquaredTolerance} from './renderer/vector.js';
 import {
   apply as applyTransform,
   create as createTransform,
   multiply as multiplyTransform,
   scale as scaleTransform,
 } from './transform.js';
-import {getSquaredTolerance} from './renderer/vector.js';
-import {getTransformFromProjections, getUserProjection} from './proj.js';
 
 /**
  * @typedef {Object} State
@@ -48,9 +48,9 @@ import {getTransformFromProjections, getUserProjection} from './proj.js';
  * The units for geometry coordinates are css pixels relative to the top left
  * corner of the canvas element.
  * ```js
- * import {toContext} from 'ol/render';
- * import Fill from 'ol/style/Fill';
- * import Polygon from 'ol/geom/Polygon';
+ * import {toContext} from 'ol/render.js';
+ * import Fill from 'ol/style/Fill.js';
+ * import Polygon from 'ol/geom/Polygon.js';
  *
  * const canvas = document.createElement('canvas');
  * const render = toContext(
@@ -96,22 +96,24 @@ export function getVectorContext(event) {
   }
 
   // canvas may be at a different pixel ratio than frameState.pixelRatio
-  const canvasPixelRatio = event.inversePixelTransform[0];
+  const a = event.inversePixelTransform[0];
+  const b = event.inversePixelTransform[1];
+  const canvasPixelRatio = Math.sqrt(a * a + b * b);
   const frameState = event.frameState;
   const transform = multiplyTransform(
     event.inversePixelTransform.slice(),
-    frameState.coordinateToPixelTransform
+    frameState.coordinateToPixelTransform,
   );
   const squaredTolerance = getSquaredTolerance(
     frameState.viewState.resolution,
-    canvasPixelRatio
+    canvasPixelRatio,
   );
   let userTransform;
   const userProjection = getUserProjection();
   if (userProjection) {
     userTransform = getTransformFromProjections(
       userProjection,
-      frameState.viewState.projection
+      frameState.viewState.projection,
     );
   }
 
@@ -122,7 +124,7 @@ export function getVectorContext(event) {
     transform,
     frameState.viewState.rotation,
     squaredTolerance,
-    userTransform
+    userTransform,
   );
 }
 

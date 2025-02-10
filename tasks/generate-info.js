@@ -1,8 +1,8 @@
-import esMain from 'es-main';
-import fse from 'fs-extra';
+import {spawn} from 'child_process';
 import path, {dirname} from 'path';
 import {fileURLToPath} from 'url';
-import {spawn} from 'child_process';
+import esMain from 'es-main';
+import fse from 'fs-extra';
 import {walk} from 'walk';
 
 const isWindows = process.platform.startsWith('win');
@@ -26,12 +26,12 @@ function getBinaryPath(binaryName) {
     '..',
     'node_modules',
     'jsdoc',
-    'jsdoc.js'
+    'jsdoc.js',
   );
   const expectedPaths = [
     path.join(baseDir, '..', 'node_modules', '.bin', binaryName),
     path.resolve(
-      path.join(path.dirname(jsdocResolved), '..', '.bin', binaryName)
+      path.join(path.dirname(jsdocResolved), '..', '.bin', binaryName),
     ),
   ];
 
@@ -43,7 +43,7 @@ function getBinaryPath(binaryName) {
   }
 
   throw Error(
-    'JsDoc binary was not found in any of the expected paths: ' + expectedPaths
+    'JsDoc binary was not found in any of the expected paths: ' + expectedPaths,
   );
 }
 
@@ -55,7 +55,7 @@ const jsdocConfig = path.join(
   'config',
   'jsdoc',
   'info',
-  'conf.json'
+  'conf.json',
 );
 
 /**
@@ -107,7 +107,7 @@ function parseOutput(output) {
   let info;
   try {
     info = JSON.parse(String(output));
-  } catch (err) {
+  } catch {
     throw new Error('Failed to parse output as JSON: ' + output);
   }
   if (!Array.isArray(info.symbols)) {

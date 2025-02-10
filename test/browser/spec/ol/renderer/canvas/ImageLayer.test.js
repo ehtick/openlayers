@@ -1,16 +1,17 @@
-import CanvasImageLayerRenderer from '../../../../../../src/ol/renderer/canvas/ImageLayer.js';
+import {spy as sinonSpy} from 'sinon';
 import Feature from '../../../../../../src/ol/Feature.js';
-import ImageLayer from '../../../../../../src/ol/layer/Image.js';
-import ImageState from '../../../../../../src/ol/ImageState.js';
 import ImageWrapper from '../../../../../../src/ol/Image.js';
+import ImageState from '../../../../../../src/ol/ImageState.js';
 import Map from '../../../../../../src/ol/Map.js';
-import Point from '../../../../../../src/ol/geom/Point.js';
-import Projection from '../../../../../../src/ol/proj/Projection.js';
-import Static from '../../../../../../src/ol/source/ImageStatic.js';
-import VectorImageLayer from '../../../../../../src/ol/layer/VectorImage.js';
-import VectorSource from '../../../../../../src/ol/source/Vector.js';
 import View from '../../../../../../src/ol/View.js';
+import Point from '../../../../../../src/ol/geom/Point.js';
+import ImageLayer from '../../../../../../src/ol/layer/Image.js';
+import VectorImageLayer from '../../../../../../src/ol/layer/VectorImage.js';
+import Projection from '../../../../../../src/ol/proj/Projection.js';
 import {get as getProj} from '../../../../../../src/ol/proj.js';
+import CanvasImageLayerRenderer from '../../../../../../src/ol/renderer/canvas/ImageLayer.js';
+import Static from '../../../../../../src/ol/source/ImageStatic.js';
+import VectorSource from '../../../../../../src/ol/source/Vector.js';
 
 describe('ol/renderer/canvas/ImageLayer', function () {
   describe('#getData', function () {
@@ -52,8 +53,7 @@ describe('ol/renderer/canvas/ImageLayer', function () {
     });
 
     afterEach(function () {
-      map.setTarget(null);
-      document.body.removeChild(target);
+      disposeMap(map);
     });
 
     it('properly detects pixels', function () {
@@ -124,8 +124,7 @@ describe('ol/renderer/canvas/ImageLayer', function () {
     });
 
     afterEach(function () {
-      map.setTarget(null);
-      document.body.removeChild(target);
+      disposeMap(map);
     });
 
     it('should not detect pixels when crossOrigin is not set', function () {
@@ -188,9 +187,7 @@ describe('ol/renderer/canvas/ImageLayer', function () {
     });
 
     afterEach(function () {
-      map.setTarget(null);
-      document.body.removeChild(div);
-      map.dispose();
+      disposeMap(map);
     });
 
     it('dispatches prerender and postrender events on the image layer', function (done) {
@@ -247,9 +244,7 @@ describe('ol/renderer/canvas/ImageLayer', function () {
     });
 
     afterEach(function () {
-      map.setTarget(null);
-      document.body.removeChild(div);
-      map.dispose();
+      disposeMap(map);
     });
 
     it('dispatches prerender and postrender events on the vector layer', function (done) {
@@ -284,13 +279,13 @@ describe('ol/renderer/canvas/ImageLayer', function () {
         }),
         extent: extent,
       });
-      layer.getSource().image_.load();
+      layer.getSource().getImage([0, 0, 100, 100], 1, 1, projection).load();
       renderer = layer.getRenderer();
-      renderer.renderWorlds = sinon.spy();
-      renderer.clipUnrotated = sinon.spy();
+      renderer.renderWorlds = sinonSpy();
+      renderer.clipUnrotated = sinonSpy();
       renderer.useContainer = function () {
         CanvasImageLayerRenderer.prototype.useContainer.apply(this, arguments);
-        this.context = sinon.spy(this.context);
+        this.context = sinonSpy(this.context);
       };
       return {
         pixelRatio: 1,
@@ -359,11 +354,16 @@ describe('ol/renderer/canvas/ImageLayer', function () {
         if (renderer.prepareFrame(frameState)) {
           renderer.renderFrame(frameState, null);
         }
-        expect(renderer.image_).to.be.a(ImageWrapper);
-        renderer.image_.state = ImageState.EMPTY;
-        expect(renderer.prepareFrame(frameState)).to.be(false);
-        expect(renderer.image_).to.be(null);
-        done();
+        try {
+          const image = renderer.image;
+          expect(image).to.be.a(ImageWrapper);
+          image.state = ImageState.EMPTY;
+          expect(renderer.prepareFrame(frameState)).to.be(false);
+          expect(renderer.image).to.be(null);
+          done();
+        } catch (e) {
+          done(e);
+        }
       });
     });
   });

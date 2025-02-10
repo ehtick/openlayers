@@ -1,8 +1,8 @@
-import TileGrid from '../../../../src/ol/tilegrid/TileGrid.js';
-import XYZ from '../../../../src/ol/source/XYZ.js';
-import {createXYZ} from '../../../../src/ol/tilegrid.js';
 import {get} from '../../../../src/ol/proj.js';
+import XYZ from '../../../../src/ol/source/XYZ.js';
 import {sourcesFromTileGrid} from '../../../../src/ol/source.js';
+import TileGrid from '../../../../src/ol/tilegrid/TileGrid.js';
+import {createXYZ} from '../../../../src/ol/tilegrid.js';
 
 describe('ol/source', function () {
   describe('sourcesFromTileGrid()', function () {
@@ -30,11 +30,14 @@ describe('ol/source', function () {
       expect(
         getSources(
           [-10000, -10000, -5000, 10000],
-          resolutions[1]
-        )[0].getUrls()[0]
+          resolutions[1],
+        )[0].getUrls()[0],
       ).to.be('0-0-0/{z}/{x}/{y}.png');
       expect(
-        getSources([5000, -10000, 10000, 10000], resolutions[1])[0].getUrls()[0]
+        getSources(
+          [5000, -10000, 10000, 10000],
+          resolutions[1],
+        )[0].getUrls()[0],
       ).to.be('0-1-0/{z}/{x}/{y}.png');
     });
   });

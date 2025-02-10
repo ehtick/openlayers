@@ -1,8 +1,10 @@
-import GeoJSON from '../src/ol/format/GeoJSON.js';
 import Map from '../src/ol/Map.js';
 import View from '../src/ol/View.js';
-import {OSM, Vector as VectorSource} from '../src/ol/source.js';
-import {Tile as TileLayer, Vector as VectorLayer} from '../src/ol/layer.js';
+import GeoJSON from '../src/ol/format/GeoJSON.js';
+import TileLayer from '../src/ol/layer/Tile.js';
+import VectorLayer from '../src/ol/layer/Vector.js';
+import OSM from '../src/ol/source/OSM.js';
+import VectorSource from '../src/ol/source/Vector.js';
 
 const source = new VectorSource({
   url: 'data/geojson/switzerland.geojson',
@@ -45,7 +47,7 @@ zoomtoswitzerland.addEventListener(
     const polygon = feature.getGeometry();
     view.fit(polygon, {padding: [170, 50, 30, 150]});
   },
-  false
+  false,
 );
 
 const zoomtolausanne = document.getElementById('zoomtolausanne');
@@ -56,7 +58,7 @@ zoomtolausanne.addEventListener(
     const point = feature.getGeometry();
     view.fit(point, {padding: [170, 50, 30, 150], minResolution: 50});
   },
-  false
+  false,
 );
 
 const centerlausanne = document.getElementById('centerlausanne');
@@ -68,5 +70,5 @@ centerlausanne.addEventListener(
     const size = map.getSize();
     view.centerOn(point.getCoordinates(), size, [570, 500]);
   },
-  false
+  false,
 );

@@ -1,15 +1,15 @@
-import expect from '../expect.js';
 import {
+  ascending,
   binarySearch,
   equals,
   extend,
   isSorted,
   linearFindNearest,
-  numberSafeCompareFunction,
   remove,
   reverseSubArray,
   stableSort,
 } from '../../../src/ol/array.js';
+import expect from '../expect.js';
 
 describe('ol/array.js', function () {
   describe('binarySearch', function () {
@@ -78,7 +78,7 @@ describe('ol/array.js', function () {
         function () {
           const pos = binarySearch(a, 'zzz0');
           expect(insertionPoint(pos)).to.be(a.length);
-        }
+        },
       );
       it("should not find 'BA'", function () {
         const pos = binarySearch(a, 'zzz0');
@@ -157,7 +157,7 @@ describe('ol/array.js', function () {
         function () {
           const pos = binarySearch(d, 54255);
           expect(insertionPoint(pos)).to.be(d.length);
-        }
+        },
       );
       it('should not find 1.1', function () {
         const pos = binarySearch(d, 1.1);
@@ -207,7 +207,7 @@ describe('ol/array.js', function () {
         function () {
           const pos = binarySearch(e, -897124, revNumCompare);
           expect(insertionPoint(pos)).to.be(e.length);
-        }
+        },
       );
       it('should not find 1.1', function () {
         const pos = binarySearch(e, 1.1, revNumCompare);
@@ -420,13 +420,13 @@ describe('ol/array.js', function () {
       expect(
         linearFindNearest(arr, 901, function (value, high, low) {
           return value - (low + (high - low) * 0.8);
-        })
+        }),
       ).to.eql(0);
 
       expect(
         linearFindNearest(arr, 900, function (value, high, low) {
           return value - (low + (high - low) * 0.8);
-        })
+        }),
       ).to.eql(1);
 
       expect(linearFindNearest(arr, 900, 0)).to.eql(0);
@@ -442,13 +442,13 @@ describe('ol/array.js', function () {
       expect(
         linearFindNearest(arr, 551, function (value, high, low) {
           return value - (low + (high - low) * 0.1);
-        })
+        }),
       ).to.eql(0);
 
       expect(
         linearFindNearest(arr, 550, function (value, high, low) {
           return value - (low + (high - low) * 0.1);
-        })
+        }),
       ).to.eql(1);
 
       expect(linearFindNearest(arr, 550, 0)).to.eql(1);
@@ -466,13 +466,13 @@ describe('ol/array.js', function () {
       expect(
         linearFindNearest(arr, 451, function (value, high, low) {
           return value - (low + (high - low) * 0.875);
-        })
+        }),
       ).to.eql(1);
 
       expect(
         linearFindNearest(arr, 450, function (value, high, low) {
           return value - (low + (high - low) * 0.875);
-        })
+        }),
       ).to.eql(2);
 
       expect(linearFindNearest(arr, 450, 0)).to.eql(1);
@@ -488,13 +488,13 @@ describe('ol/array.js', function () {
       expect(
         linearFindNearest(arr, 201, function (value, high, low) {
           return value - (low + (high - low) * 0.25);
-        })
+        }),
       ).to.eql(1);
 
       expect(
         linearFindNearest(arr, 200, function (value, high, low) {
           return value - (low + (high - low) * 0.25);
-        })
+        }),
       ).to.eql(2);
 
       expect(linearFindNearest(arr, 200, 0)).to.eql(2);
@@ -513,12 +513,24 @@ describe('ol/array.js', function () {
     });
   });
 
-  describe('numberSafeCompareFunction', function () {
-    it('sorts as expected', function () {
-      const arr = [40, 200, 3000];
+  describe('ascending', function () {
+    it('sorts integers in ascending order', function () {
+      const arr = [3000, 40, 200];
+      arr.sort(ascending);
       // default sort would yield [200, 3000, 40]
-      arr.sort(numberSafeCompareFunction);
-      expect(arr).to.eql(arr);
+      expect(arr).to.eql([40, 200, 3000]);
+    });
+
+    it('sorts floats in ascending order', function () {
+      const arr = [-2.0, -2.1, -1.9];
+      arr.sort(ascending);
+      expect(arr).to.eql([-2.1, -2.0, -1.9]);
+    });
+
+    it('sorts strings in ascending order', function () {
+      const arr = ['bravo', 'alpha', 'delta'];
+      arr.sort(ascending);
+      expect(arr).to.eql(['alpha', 'bravo', 'delta']);
     });
   });
 

@@ -2,7 +2,6 @@
  * @module ol/extent
  */
 import Relationship from './extent/Relationship.js';
-import {assert} from './asserts.js';
 
 /**
  * An array of numbers representing an extent: `[minx, miny, maxx, maxy]`.
@@ -60,14 +59,13 @@ export function buffer(extent, value, dest) {
     dest[2] = extent[2] + value;
     dest[3] = extent[3] + value;
     return dest;
-  } else {
-    return [
-      extent[0] - value,
-      extent[1] - value,
-      extent[2] + value,
-      extent[3] + value,
-    ];
   }
+  return [
+    extent[0] - value,
+    extent[1] - value,
+    extent[2] + value,
+    extent[3] + value,
+  ];
 }
 
 /**
@@ -84,9 +82,8 @@ export function clone(extent, dest) {
     dest[2] = extent[2];
     dest[3] = extent[3];
     return dest;
-  } else {
-    return extent.slice();
   }
+  return extent.slice();
 }
 
 /**
@@ -216,9 +213,8 @@ export function createOrUpdate(minX, minY, maxX, maxY, dest) {
     dest[2] = maxX;
     dest[3] = maxY;
     return dest;
-  } else {
-    return [minX, minY, maxX, maxY];
   }
+  return [minX, minY, maxX, maxY];
 }
 
 /**
@@ -264,7 +260,7 @@ export function createOrUpdateFromFlatCoordinates(
   offset,
   end,
   stride,
-  dest
+  dest,
 ) {
   const extent = createOrUpdateEmpty(dest);
   return extendFlatCoordinates(extent, flatCoordinates, offset, end, stride);
@@ -379,7 +375,7 @@ export function extendFlatCoordinates(
   flatCoordinates,
   offset,
   end,
-  stride
+  stride,
 ) {
   for (; offset < end; offset += stride) {
     extendXY(extent, flatCoordinates[offset], flatCoordinates[offset + 1]);
@@ -502,7 +498,7 @@ export function getCorner(extent, corner) {
   } else if (corner === 'top-right') {
     coordinate = getTopRight(extent);
   } else {
-    assert(false, 13); // Invalid corner
+    throw new Error('Invalid corner');
   }
   return coordinate;
 }
@@ -533,14 +529,14 @@ export function getForViewAndSize(center, resolution, rotation, size, dest) {
     center,
     resolution,
     rotation,
-    size
+    size,
   );
   return createOrUpdate(
     Math.min(x0, x1, x2, x3),
     Math.min(y0, y1, y2, y3),
     Math.max(x0, x1, x2, x3),
     Math.max(y0, y1, y2, y3),
-    dest
+    dest,
   );
 }
 
@@ -719,9 +715,8 @@ export function returnOrUpdate(extent, dest) {
     dest[2] = extent[2];
     dest[3] = extent[3];
     return dest;
-  } else {
-    return extent;
   }
+  return extent;
 }
 
 /**
@@ -813,6 +808,9 @@ export function intersectsSegment(extent, start, end) {
  * @api
  */
 export function applyTransform(extent, transformFn, dest, stops) {
+  if (isEmpty(extent)) {
+    return createOrUpdateEmpty(dest);
+  }
   let coordinates = [];
   if (stops > 1) {
     const width = extent[2] - extent[0];
@@ -826,7 +824,7 @@ export function applyTransform(extent, transformFn, dest, stops) {
         extent[2] - (width * i) / stops,
         extent[3],
         extent[0],
-        extent[3] - (height * i) / stops
+        extent[3] - (height * i) / stops,
       );
     }
   } else {
@@ -868,7 +866,7 @@ export function wrapX(extent, projection) {
   ) {
     const worldWidth = getWidth(projectionExtent);
     const worldsAway = Math.floor(
-      (center[0] - projectionExtent[0]) / worldWidth
+      (center[0] - projectionExtent[0]) / worldWidth,
     );
     const offset = worldsAway * worldWidth;
     extent[0] -= offset;
@@ -887,9 +885,10 @@ export function wrapX(extent, projection) {
  *
  * @param {Extent} extent Extent.
  * @param {import("./proj/Projection.js").default} projection Projection
+ * @param {boolean} [multiWorld] Return all worlds
  * @return {Array<Extent>} The extent within the real world extent.
  */
-export function wrapAndSliceX(extent, projection) {
+export function wrapAndSliceX(extent, projection, multiWorld) {
   if (projection.canWrapX()) {
     const projectionExtent = projection.getExtent();
 
@@ -900,16 +899,18 @@ export function wrapAndSliceX(extent, projection) {
     wrapX(extent, projection);
     const worldWidth = getWidth(projectionExtent);
 
-    if (getWidth(extent) > worldWidth) {
+    if (getWidth(extent) > worldWidth && !multiWorld) {
       // the extent wraps around on itself
       return [[projectionExtent[0], extent[1], projectionExtent[2], extent[3]]];
-    } else if (extent[0] < projectionExtent[0]) {
+    }
+    if (extent[0] < projectionExtent[0]) {
       // the extent crosses the anti meridian, so it needs to be sliced
       return [
         [extent[0] + worldWidth, extent[1], projectionExtent[2], extent[3]],
         [projectionExtent[0], extent[1], extent[2], extent[3]],
       ];
-    } else if (extent[2] > projectionExtent[2]) {
+    }
+    if (extent[2] > projectionExtent[2]) {
       // the extent crosses the anti meridian, so it needs to be sliced
       return [
         [extent[0], extent[1], projectionExtent[2], extent[3]],

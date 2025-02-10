@@ -1,20 +1,24 @@
+import monotoneChainConvexHull from 'monotone-chain-convex-hull';
 import Feature from '../src/ol/Feature.js';
-import GeoJSON from '../src/ol/format/GeoJSON.js';
 import Map from '../src/ol/Map.js';
 import View from '../src/ol/View.js';
-import {
-  Circle as CircleStyle,
-  Fill,
-  Icon,
-  Stroke,
-  Style,
-  Text,
-} from '../src/ol/style.js';
-import {Cluster, Vector as VectorSource, XYZ} from '../src/ol/source.js';
-import {LineString, Point, Polygon} from '../src/ol/geom.js';
-import {Tile as TileLayer, Vector as VectorLayer} from '../src/ol/layer.js';
-import {createEmpty, extend, getWidth} from '../src/ol/extent.js';
+import {createEmpty, extend, getHeight, getWidth} from '../src/ol/extent.js';
+import GeoJSON from '../src/ol/format/GeoJSON.js';
+import LineString from '../src/ol/geom/LineString.js';
+import Point from '../src/ol/geom/Point.js';
+import Polygon from '../src/ol/geom/Polygon.js';
+import TileLayer from '../src/ol/layer/Tile.js';
+import VectorLayer from '../src/ol/layer/Vector.js';
 import {fromLonLat} from '../src/ol/proj.js';
+import Cluster from '../src/ol/source/Cluster.js';
+import ImageTile from '../src/ol/source/ImageTile.js';
+import VectorSource from '../src/ol/source/Vector.js';
+import CircleStyle from '../src/ol/style/Circle.js';
+import Fill from '../src/ol/style/Fill.js';
+import Icon from '../src/ol/style/Icon.js';
+import Stroke from '../src/ol/style/Stroke.js';
+import Style from '../src/ol/style/Style.js';
+import Text from '../src/ol/style/Text.js';
 
 const circleDistanceMultiplier = 1;
 const circleFootSeparation = 28;
@@ -72,18 +76,18 @@ let clickFeature, clickResolution;
  * Style for clusters with features that are too close to each other, activated on click.
  * @param {Feature} cluster A cluster with overlapping members.
  * @param {number} resolution The current view resolution.
- * @return {Style} A style to render an expanded view of the cluster members.
+ * @return {Array<Style>|null} A style to render an expanded view of the cluster members.
  */
 function clusterCircleStyle(cluster, resolution) {
   if (cluster !== clickFeature || resolution !== clickResolution) {
-    return;
+    return null;
   }
   const clusterMembers = cluster.get('features');
   const centerCoordinates = cluster.getGeometry().getCoordinates();
   return generatePointsCircle(
     clusterMembers.length,
     cluster.getGeometry().getCoordinates(),
-    resolution
+    resolution,
   ).reduce((styles, coordinates, i) => {
     const point = new Point(coordinates);
     const line = new LineString([centerCoordinates, coordinates]);
@@ -91,15 +95,15 @@ function clusterCircleStyle(cluster, resolution) {
       new Style({
         geometry: line,
         stroke: convexHullStroke,
-      })
+      }),
     );
     styles.push(
       clusterMemberStyle(
         new Feature({
           ...clusterMembers[i].getProperties(),
           geometry: point,
-        })
-      )
+        }),
+      ),
     );
     return styles;
   }, []);
@@ -141,15 +145,15 @@ let hoverFeature;
 /**
  * Style for convex hulls of clusters, activated on hover.
  * @param {Feature} cluster The cluster feature.
- * @return {Style} Polygon style for the convex hull of the cluster.
+ * @return {Style|null} Polygon style for the convex hull of the cluster.
  */
 function clusterHullStyle(cluster) {
   if (cluster !== hoverFeature) {
-    return;
+    return null;
   }
   const originalFeatures = cluster.get('features');
   const points = originalFeatures.map((feature) =>
-    feature.getGeometry().getCoordinates()
+    feature.getGeometry().getCoordinates(),
   );
   return new Style({
     geometry: new Polygon([monotoneChainConvexHull(points)]),
@@ -174,10 +178,9 @@ function clusterStyle(feature) {
         }),
       }),
     ];
-  } else {
-    const originalFeature = feature.get('features')[0];
-    return clusterMemberStyle(originalFeature);
   }
+  const originalFeature = feature.get('features')[0];
+  return clusterMemberStyle(originalFeature);
 }
 
 const vectorSource = new VectorSource({
@@ -211,7 +214,7 @@ const clusterCircles = new VectorLayer({
 });
 
 const raster = new TileLayer({
-  source: new XYZ({
+  source: new ImageTile({
     attributions:
       'Base map: <a target="_blank" href="https://basemap.at/">basemap.at</a>',
     url: 'https://maps{1-4}.wien.gv.at/basemap/bmapgrau/normal/google3857/{z}/{y}/{x}.png',
@@ -256,13 +259,13 @@ map.on('click', (event) => {
         // Calculate the extent of the cluster members.
         const extent = createEmpty();
         clusterMembers.forEach((feature) =>
-          extend(extent, feature.getGeometry().getExtent())
+          extend(extent, feature.getGeometry().getExtent()),
         );
         const view = map.getView();
         const resolution = map.getView().getResolution();
         if (
           view.getZoom() === view.getMaxZoom() ||
-          (getWidth(extent) < resolution && getWidth(extent) < resolution)
+          (getWidth(extent) < resolution && getHeight(extent) < resolution)
         ) {
           // Show an expanded view of the cluster members.
           clickFeature = features[0];

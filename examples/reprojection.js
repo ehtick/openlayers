@@ -1,53 +1,55 @@
-import Map from '../src/ol/Map.js';
-import TileGrid from '../src/ol/tilegrid/TileGrid.js';
-import TileLayer from '../src/ol/layer/Tile.js';
-import View from '../src/ol/View.js';
-import WMTS, {optionsFromCapabilities} from '../src/ol/source/WMTS.js';
-import WMTSCapabilities from '../src/ol/format/WMTSCapabilities.js';
 import proj4 from 'proj4';
-import {OSM, TileImage, TileWMS} from '../src/ol/source.js';
-import {createXYZ} from '../src/ol/tilegrid.js';
+import Map from '../src/ol/Map.js';
+import View from '../src/ol/View.js';
 import {getCenter, getWidth} from '../src/ol/extent.js';
-import {get as getProjection, transformExtent} from '../src/ol/proj.js';
+import WMTSCapabilities from '../src/ol/format/WMTSCapabilities.js';
+import TileLayer from '../src/ol/layer/WebGLTile.js';
 import {register} from '../src/ol/proj/proj4.js';
+import {get as getProjection, transformExtent} from '../src/ol/proj.js';
+import OSM from '../src/ol/source/OSM.js';
+import TileImage from '../src/ol/source/TileImage.js';
+import TileWMS from '../src/ol/source/TileWMS.js';
+import WMTS, {optionsFromCapabilities} from '../src/ol/source/WMTS.js';
+import TileGrid from '../src/ol/tilegrid/TileGrid.js';
+import {createXYZ} from '../src/ol/tilegrid.js';
 
 proj4.defs(
   'EPSG:27700',
   '+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 ' +
     '+x_0=400000 +y_0=-100000 +ellps=airy ' +
     '+towgs84=446.448,-125.157,542.06,0.15,0.247,0.842,-20.489 ' +
-    '+units=m +no_defs'
+    '+units=m +no_defs',
 );
 proj4.defs(
   'EPSG:23032',
   '+proj=utm +zone=32 +ellps=intl ' +
-    '+towgs84=-87,-98,-121,0,0,0,0 +units=m +no_defs'
+    '+towgs84=-87,-98,-121,0,0,0,0 +units=m +no_defs',
 );
 proj4.defs(
   'EPSG:5479',
   '+proj=lcc +lat_1=-76.66666666666667 +lat_2=' +
     '-79.33333333333333 +lat_0=-78 +lon_0=163 +x_0=7000000 +y_0=5000000 ' +
-    '+ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs'
+    '+ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs',
 );
 proj4.defs(
   'EPSG:21781',
   '+proj=somerc +lat_0=46.95240555555556 ' +
     '+lon_0=7.439583333333333 +k_0=1 +x_0=600000 +y_0=200000 +ellps=bessel ' +
-    '+towgs84=674.4,15.1,405.3,0,0,0,0 +units=m +no_defs'
+    '+towgs84=674.4,15.1,405.3,0,0,0,0 +units=m +no_defs',
 );
 proj4.defs(
   'EPSG:3413',
   '+proj=stere +lat_0=90 +lat_ts=70 +lon_0=-45 +k=1 ' +
-    '+x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs'
+    '+x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs',
 );
 proj4.defs(
   'EPSG:2163',
   '+proj=laea +lat_0=45 +lon_0=-100 +x_0=0 +y_0=0 ' +
-    '+a=6370997 +b=6370997 +units=m +no_defs'
+    '+a=6370997 +b=6370997 +units=m +no_defs',
 );
 proj4.defs(
   'ESRI:54009',
-  '+proj=moll +lon_0=0 +x_0=0 +y_0=0 +datum=WGS84 ' + '+units=m +no_defs'
+  '+proj=moll +lon_0=0 +x_0=0 +y_0=0 +datum=WGS84 ' + '+units=m +no_defs',
 );
 register(proj4);
 
@@ -208,7 +210,7 @@ function updateViewProjection() {
   // Example how to prevent double occurrence of map by limiting layer extent
   if (newProj.isGlobal()) {
     layers['bng'].setExtent(
-      transformExtent(proj27700.getExtent(), proj27700, newProj, 2)
+      transformExtent(proj27700.getExtent(), proj27700, newProj, 2),
     );
   } else {
     layers['bng'].setExtent(undefined);

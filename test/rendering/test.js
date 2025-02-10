@@ -1,10 +1,12 @@
 #! /usr/bin/env node
-import config from './webpack.config.js';
+import fs from 'fs';
+import path, {dirname} from 'path';
+import {fileURLToPath} from 'url';
 import esMain from 'es-main';
 import express from 'express';
-import fs from 'fs';
 import fse from 'fs-extra';
-import path, {dirname} from 'path';
+import {globby} from 'globby';
+import {LogLevel} from 'loglevelnext';
 import pixelmatch from 'pixelmatch';
 import png from 'pngjs';
 import puppeteer from 'puppeteer';
@@ -12,10 +14,8 @@ import serveStatic from 'serve-static';
 import webpack from 'webpack';
 import webpackMiddleware from 'webpack-dev-middleware';
 import yargs from 'yargs';
-import {LogLevel} from 'loglevelnext/dist/LogLevel.js';
-import {fileURLToPath} from 'url';
-import {globby} from 'globby';
 import {hideBin} from 'yargs/helpers';
+import config from './webpack.config.js';
 
 const baseDir = dirname(fileURLToPath(import.meta.url));
 
@@ -66,6 +66,7 @@ function serve(options) {
 
   return new Promise((resolve, reject) => {
     const app = express();
+    app.use(serveStatic(path.join(baseDir, '..', '..', 'build', 'full')));
     app.use((req, res) => {
       if (req.url === '/favicon.ico') {
         res.writeHead(204);
@@ -88,7 +89,7 @@ function serve(options) {
       }
       const address = server.address();
       options.log.info(
-        `test server listening http://${address.address}:${address.port}/`
+        `test server listening http://${address.address}:${address.port}/`,
       );
       resolve(() => server.close(() => process.exit(0)));
     });
@@ -130,12 +131,12 @@ async function match(actual, expected) {
   const height = expectedImage.height;
   if (actualImage.width != width) {
     throw new Error(
-      `Unexpected width for ${actual}: expected ${width}, got ${actualImage.width}`
+      `Unexpected width for ${actual}: expected ${width}, got ${actualImage.width}`,
     );
   }
   if (actualImage.height != height) {
     throw new Error(
-      `Unexpected height for ${actual}: expected ${height}, got ${actualImage.height}`
+      `Unexpected height for ${actual}: expected ${height}, got ${actualImage.height}`,
     );
   }
   const count = pixelmatch(
@@ -143,7 +144,7 @@ async function match(actual, expected) {
     expectedImage.data,
     null,
     width,
-    height
+    height,
   );
   return count / (width * height);
 }
@@ -205,7 +206,7 @@ async function renderEach(page, entries, options) {
     const {tolerance = 0.005, message = ''} = await renderPage(
       page,
       entry,
-      options
+      options,
     );
 
     if (options.fix) {
@@ -239,7 +240,7 @@ async function renderEach(page, entries, options) {
 async function render(entries, options) {
   const browser = await puppeteer.launch({
     args: options.puppeteerArgs,
-    headless: options.headless,
+    headless: options.headless ? 'new' : false,
   });
 
   let fail = false;
@@ -289,7 +290,7 @@ async function getLatest(patterns) {
 
 async function getOutdated(entries, options) {
   const libTime = await getLatest(
-    path.join(baseDir, '..', 'src', 'ol', '**', '*')
+    path.join(baseDir, '..', 'src', 'ol', '**', '*'),
   );
   options.log.debug('library time', libTime);
   const outdated = [];
@@ -303,7 +304,7 @@ async function getOutdated(entries, options) {
     }
 
     const caseTime = await getLatest(
-      path.join(baseDir, path.dirname(entry), '**', '*')
+      path.join(baseDir, path.dirname(entry), '**', '*'),
     );
     options.log.debug('case time', entry, caseTime);
     if (passTime < caseTime) {

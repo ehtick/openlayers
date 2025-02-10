@@ -1,19 +1,20 @@
-import Map from '../src/ol/Map.js';
-import OSM from '../src/ol/source/OSM.js';
-import Static from '../src/ol/source/ImageStatic.js';
-import View from '../src/ol/View.js';
 import proj4 from 'proj4';
-import {Image as ImageLayer, Tile as TileLayer} from '../src/ol/layer.js';
+import Map from '../src/ol/Map.js';
+import View from '../src/ol/View.js';
 import {getCenter} from '../src/ol/extent.js';
+import ImageLayer from '../src/ol/layer/Image.js';
+import TileLayer from '../src/ol/layer/Tile.js';
 import {register} from '../src/ol/proj/proj4.js';
 import {transform} from '../src/ol/proj.js';
+import Static from '../src/ol/source/ImageStatic.js';
+import OSM from '../src/ol/source/OSM.js';
 
 proj4.defs(
   'EPSG:27700',
   '+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 ' +
     '+x_0=400000 +y_0=-100000 +ellps=airy ' +
     '+towgs84=446.448,-125.157,542.06,0.15,0.247,0.842,-20.489 ' +
-    '+units=m +no_defs'
+    '+units=m +no_defs',
 );
 register(proj4);
 

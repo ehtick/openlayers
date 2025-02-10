@@ -1,15 +1,15 @@
-import DragAndDrop from '../../../../../src/ol/interaction/DragAndDrop.js';
+import View from '../../../../../src/ol/View.js';
 import Event from '../../../../../src/ol/events/Event.js';
 import EventTarget from '../../../../../src/ol/events/Target.js';
 import GeoJSON from '../../../../../src/ol/format/GeoJSON.js';
 import MVT from '../../../../../src/ol/format/MVT.js';
-import VectorSource from '../../../../../src/ol/source/Vector.js';
-import View from '../../../../../src/ol/View.js';
+import DragAndDrop from '../../../../../src/ol/interaction/DragAndDrop.js';
 import {
   clearUserProjection,
   transform,
   useGeographic,
 } from '../../../../../src/ol/proj.js';
+import VectorSource from '../../../../../src/ol/source/Vector.js';
 
 where('FileReader').describe('ol.interaction.DragAndDrop', function () {
   let viewport, map, interaction;
@@ -128,7 +128,7 @@ where('FileReader').describe('ol.interaction.DragAndDrop', function () {
       interaction.on('addfeatures', function (evt) {
         expect(evt.features.length).to.be(1);
         expect(evt.features[0].getGeometry().getCoordinates()).to.eql(
-          transform([102.0, 0.5], 'EPSG:4326', 'EPSG:3857')
+          transform([102.0, 0.5], 'EPSG:4326', 'EPSG:3857'),
         );
         expect(mockReadAsText).to.be(true);
         expect(mockReadAsArrayBuffer).to.be(false);

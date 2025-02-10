@@ -1,15 +1,15 @@
-import DataTileSource from '../../../../../src/ol/source/DataTile.js';
+import {spy as sinonSpy} from 'sinon';
 import Map from '../../../../../src/ol/Map.js';
-import OSM from '../../../../../src/ol/source/OSM.js';
-import TileWMS from '../../../../../src/ol/source/TileWMS.js';
 import View from '../../../../../src/ol/View.js';
-import WebGLHelper from '../../../../../src/ol/webgl/Helper.js';
-import WebGLTileLayer from '../../../../../src/ol/layer/WebGLTile.js';
 import {createCanvasContext2D} from '../../../../../src/ol/dom.js';
-import {createXYZ} from '../../../../../src/ol/tilegrid.js';
 import {getForViewAndSize} from '../../../../../src/ol/extent.js';
+import WebGLTileLayer from '../../../../../src/ol/layer/WebGLTile.js';
 import {getRenderPixel} from '../../../../../src/ol/render.js';
+import DataTileSource from '../../../../../src/ol/source/DataTile.js';
+import TileWMS from '../../../../../src/ol/source/TileWMS.js';
 import {sourcesFromTileGrid} from '../../../../../src/ol/source.js';
+import {createXYZ} from '../../../../../src/ol/tilegrid.js';
+import WebGLHelper from '../../../../../src/ol/webgl/Helper.js';
 
 describe('ol/layer/WebGLTile', function () {
   /** @type {WebGLTileLayer} */
@@ -52,8 +52,7 @@ describe('ol/layer/WebGLTile', function () {
   });
 
   afterEach(function () {
-    map.setTarget(null);
-    document.body.removeChild(target);
+    disposeMap(map);
     map.getLayers().forEach((layer) => layer.dispose());
   });
 
@@ -77,8 +76,7 @@ describe('ol/layer/WebGLTile', function () {
     });
 
     afterEach(() => {
-      map.setTarget(null);
-      document.body.removeChild(target);
+      disposeMap(map);
     });
 
     it('retrieves pixel data', (done) => {
@@ -123,7 +121,7 @@ describe('ol/layer/WebGLTile', function () {
               loader(z2, x2, y2) {
                 return new Uint8Array([x1, y1, x2, y2]);
               },
-            })
+            }),
         ),
       });
 
@@ -222,8 +220,7 @@ describe('ol/layer/WebGLTile', function () {
     });
 
     afterEach(() => {
-      map.setTarget(null);
-      document.body.removeChild(target);
+      disposeMap(map);
     });
 
     it('gets pixel data', () => {
@@ -264,27 +261,14 @@ describe('ol/layer/WebGLTile', function () {
   describe('dispose()', () => {
     it('calls dispose on the renderer', () => {
       const renderer = layer.getRenderer();
-      const spy = sinon.spy(renderer, 'dispose');
+      const spy = sinonSpy(renderer, 'dispose');
       layer.dispose();
       expect(spy.called).to.be(true);
     });
   });
 
-  describe('caching', () => {
-    it('updates the size of the tile cache on the source ', (done) => {
-      const source = new OSM();
-      const spy = sinon.spy(source, 'updateCacheSize');
-      const layer = new WebGLTileLayer({source: source});
-      map.addLayer(layer);
-      map.once('rendercomplete', () => {
-        expect(spy.called).to.be(true);
-        done();
-      });
-    });
-  });
-
   it('creates fragment and vertex shaders', function () {
-    const compileShaderSpy = sinon.spy(WebGLHelper.prototype, 'compileShader');
+    const compileShaderSpy = sinonSpy(WebGLHelper.prototype, 'compileShader');
     const renderer = layer.getRenderer();
     const viewState = map.getView().getState();
     const size = map.getSize();
@@ -294,7 +278,7 @@ describe('ol/layer/WebGLTile', function () {
         viewState.center,
         viewState.resolution,
         viewState.rotation,
-        size
+        size,
       ),
       layerStatesArray: map.getLayerGroup().getLayerStatesArray(),
       layerIndex: 0,
@@ -335,13 +319,10 @@ describe('ol/layer/WebGLTile', function () {
         }
         vec4 color = texture2D(u_tileTextures[0], v_textureCoord);
         color = vec4(u_var_r / 255.0, u_var_g / 255.0, u_var_b / 255.0, 1.0);
-        if (color.a == 0.0) {
-          discard;
-        }
         gl_FragColor = color;
         gl_FragColor.rgb *= gl_FragColor.a;
         gl_FragColor *= u_transitionAlpha;
-      }`.replace(/[ \n]+/g, ' ')
+      }`.replace(/[ \n]+/g, ' '),
     );
 
     expect(compileShaderSpy.getCall(1).args[0].replace(/[ \n]+/g, ' ')).to.be(
@@ -367,7 +348,7 @@ describe('ol/layer/WebGLTile', function () {
         );
         gl_Position = u_tileTransform * vec4(a_textureCoord, u_depth, 1.0);
       }
-      `.replace(/[ \n]+/g, ' ')
+      `.replace(/[ \n]+/g, ' '),
     );
   });
 
@@ -385,7 +366,7 @@ describe('ol/layer/WebGLTile', function () {
       color: ['array', nir, red, green, 1],
     });
 
-    const compileShaderSpy = sinon.spy(WebGLHelper.prototype, 'compileShader');
+    const compileShaderSpy = sinonSpy(WebGLHelper.prototype, 'compileShader');
     const renderer = layer.getRenderer();
     const viewState = map.getView().getState();
     const size = map.getSize();
@@ -395,7 +376,7 @@ describe('ol/layer/WebGLTile', function () {
         viewState.center,
         viewState.resolution,
         viewState.rotation,
-        size
+        size,
       ),
       layerStatesArray: map.getLayerGroup().getLayerStatesArray(),
       layerIndex: 0,
@@ -449,13 +430,10 @@ describe('ol/layer/WebGLTile', function () {
         }
         vec4 color = texture2D(u_tileTextures[0], v_textureCoord);
         color = vec4((getBandValue(4.0, 0.0, 0.0) / 3000.0), (getBandValue(1.0, 0.0, 0.0) / 3000.0), (getBandValue(2.0, 0.0, 0.0) / 3000.0), 1.0);
-        if (color.a == 0.0) {
-          discard;
-        }
         gl_FragColor = color;
         gl_FragColor.rgb *= gl_FragColor.a;
         gl_FragColor *= u_transitionAlpha;
-      }`.replace(/[ \n]+/g, ' ')
+      }`.replace(/[ \n]+/g, ' '),
     );
   });
 
@@ -577,7 +555,7 @@ describe('ol/layer/WebGLTile', function () {
           ([z, x, y]) =>
             new DataTileSource({
               bandCount: 7,
-            })
+            }),
         ),
       });
       expect(layer.getSourceBandCount_()).to.be(7);
@@ -639,17 +617,6 @@ describe('ol/layer/WebGLTile', function () {
     map.render();
   });
 
-  it('tries to expire the source tile cache', (done) => {
-    const source = layer.getSource();
-    const expire = sinon.spy(source, 'expireCache');
-
-    layer.updateStyleVariables({r: 1, g: 2, b: 3});
-    map.once('rendercomplete', () => {
-      expect(expire.called).to.be(true);
-      done();
-    });
-  });
-
   it('throws on incorrect style configs', function () {
     function incorrectStyle() {
       layer.style_ = {
@@ -687,7 +654,7 @@ describe('ol/layer/WebGLTile', function () {
         loader(z, x, y) {
           return new ImageData(256, 256).data;
         },
-      })
+      }),
     );
 
     let called = false;

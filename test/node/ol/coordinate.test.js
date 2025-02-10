@@ -1,13 +1,10 @@
-import Circle from '../../../src/ol/geom/Circle.js';
-import Projection from '../../../src/ol/proj/Projection.js';
-import expect from '../expect.js';
 import {
   add as addCoordinate,
   closestOnCircle,
   closestOnSegment,
-  equals as coordinatesEqual,
   createStringXY,
   degreesToStringHDMS,
+  equals as coordinatesEqual,
   format as formatCoordinate,
   rotate as rotateCoordinate,
   scale as scaleCoordinate,
@@ -16,7 +13,10 @@ import {
   toStringXY,
   wrapX,
 } from '../../../src/ol/coordinate.js';
+import Circle from '../../../src/ol/geom/Circle.js';
+import Projection from '../../../src/ol/proj/Projection.js';
 import {get} from '../../../src/ol/proj.js';
+import expect from '../expect.js';
 
 describe('ol/coordinate.js', function () {
   describe('#add', function () {
@@ -50,7 +50,7 @@ describe('ol/coordinate.js', function () {
         coordinate,
         delta.map(function (n) {
           return String(n);
-        })
+        }),
       );
       expect(coordinate[0]).to.eql(48.73);
       expect(coordinate[1]).to.eql(10.1);
@@ -220,7 +220,7 @@ describe('ol/coordinate.js', function () {
   describe('degreesToStringHDMS', () => {
     it('includes minutes and seconds if non-zero', () => {
       expect(degreesToStringHDMS('NS', 10 + 30 / 60 + 30 / 3600)).to.be(
-        '10° 30′ 30″ N'
+        '10° 30′ 30″ N',
       );
     });
 

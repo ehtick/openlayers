@@ -1,7 +1,12 @@
-import EventType from '../../../../../src/ol/pointer/EventType.js';
 import Map from '../../../../../src/ol/Map.js';
-import MousePosition from '../../../../../src/ol/control/MousePosition.js';
 import View from '../../../../../src/ol/View.js';
+import MousePosition from '../../../../../src/ol/control/MousePosition.js';
+import EventType from '../../../../../src/ol/pointer/EventType.js';
+import {
+  clearUserProjection,
+  fromLonLat,
+  useGeographic,
+} from '../../../../../src/ol/proj.js';
 
 describe('ol/control/MousePosition', function () {
   describe('constructor', function () {
@@ -46,8 +51,8 @@ describe('ol/control/MousePosition', function () {
       });
     });
     afterEach(function () {
-      map.dispose();
-      document.body.removeChild(target);
+      disposeMap(map);
+      clearUserProjection();
     });
 
     function simulateEvent(type, x, y) {
@@ -118,6 +123,45 @@ describe('ol/control/MousePosition', function () {
         simulateEvent(EventType.POINTEROUT, width + 1, height + 1);
         expect(element.innerHTML).to.be('');
       });
+    });
+
+    it('can opt out of wrapX', function () {
+      const ctrl = new MousePosition({wrapX: false});
+      ctrl.setMap(map);
+      map.getView().setCenter([-360, 0]);
+      map.renderSync();
+      simulateEvent(EventType.POINTERMOVE, 0, 0);
+      expect(ctrl.element.innerHTML).to.be('-360,0');
+    });
+
+    it('can wrapX', function () {
+      const ctrl = new MousePosition();
+      ctrl.setMap(map);
+      map.getView().setCenter([-360, 0]);
+      map.renderSync();
+      simulateEvent(EventType.POINTERMOVE, 0, 0);
+      expect(ctrl.element.innerHTML).to.be('0,0');
+    });
+
+    it('can wrapX with projection', function () {
+      const ctrl = new MousePosition({projection: 'EPSG:4326'});
+      map.setView(new View({resolution: 1}));
+      ctrl.setMap(map);
+      map.getView().setCenter(fromLonLat([-360, 0]));
+      map.renderSync();
+      simulateEvent(EventType.POINTERMOVE, 0, 0);
+      expect(ctrl.element.innerHTML).to.be('0,0');
+    });
+
+    it('can wrapX with user projection', function () {
+      useGeographic();
+      const ctrl = new MousePosition({projection: 'EPSG:4326'});
+      map.setView(new View({resolution: 1}));
+      ctrl.setMap(map);
+      map.getView().setCenter([-360, 0]);
+      map.renderSync();
+      simulateEvent(EventType.POINTERMOVE, 0, 0);
+      expect(ctrl.element.innerHTML).to.be('0,0');
     });
   });
 });

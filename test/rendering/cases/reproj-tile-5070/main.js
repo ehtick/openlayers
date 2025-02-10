@@ -1,15 +1,15 @@
-import Map from '../../../../src/ol/Map.js';
-import TileLayer from '../../../../src/ol/layer/Tile.js';
-import View from '../../../../src/ol/View.js';
-import XYZ from '../../../../src/ol/source/XYZ.js';
 import proj4 from 'proj4';
-import {get, transform} from '../../../../src/ol/proj.js';
+import Map from '../../../../src/ol/Map.js';
+import View from '../../../../src/ol/View.js';
+import TileLayer from '../../../../src/ol/layer/Tile.js';
 import {register} from '../../../../src/ol/proj/proj4.js';
+import {get, transform} from '../../../../src/ol/proj.js';
+import XYZ from '../../../../src/ol/source/XYZ.js';
 
 proj4.defs(
   'EPSG:5070',
   '+proj=aea +lat_1=29.5 +lat_2=45.5 +lat_0=23 +lon_0=-96 +x_0=0 ' +
-    '+y_0=0 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs'
+    '+y_0=0 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs',
 );
 register(proj4);
 const proj5070 = get('EPSG:5070');

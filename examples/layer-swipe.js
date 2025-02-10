@@ -1,9 +1,9 @@
 import Map from '../src/ol/Map.js';
-import OSM from '../src/ol/source/OSM.js';
-import TileLayer from '../src/ol/layer/Tile.js';
 import View from '../src/ol/View.js';
-import XYZ from '../src/ol/source/XYZ.js';
+import TileLayer from '../src/ol/layer/Tile.js';
 import {getRenderPixel} from '../src/ol/render.js';
+import ImageTile from '../src/ol/source/ImageTile.js';
+import OSM from '../src/ol/source/OSM.js';
 
 const osm = new TileLayer({
   source: new OSM(),
@@ -15,9 +15,10 @@ const attributions =
   '<a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>';
 
 const aerial = new TileLayer({
-  source: new XYZ({
+  source: new ImageTile({
     attributions: attributions,
-    url: 'https://api.maptiler.com/tiles/satellite/{z}/{x}/{y}.jpg?key=' + key,
+    url: 'https://api.maptiler.com/maps/satellite/{z}/{x}/{y}.jpg?key=' + key,
+    tileSize: 512,
     maxZoom: 20,
   }),
 });
@@ -36,7 +37,7 @@ const swipe = document.getElementById('swipe');
 aerial.on('prerender', function (event) {
   const ctx = event.context;
   const mapSize = map.getSize();
-  const width = mapSize[0] * (swipe.value / 100);
+  const width = mapSize[0] * (Number(swipe.value) / 100);
   const tl = getRenderPixel(event, [width, 0]);
   const tr = getRenderPixel(event, [mapSize[0], 0]);
   const bl = getRenderPixel(event, [width, mapSize[1]]);

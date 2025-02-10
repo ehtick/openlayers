@@ -1,8 +1,9 @@
 import Map from '../src/ol/Map.js';
-import TileLayer from '../src/ol/layer/Tile.js';
 import View from '../src/ol/View.js';
-import XYZ from '../src/ol/source/XYZ.js';
-import {FullScreen, defaults as defaultControls} from '../src/ol/control.js';
+import FullScreen from '../src/ol/control/FullScreen.js';
+import {defaults as defaultControls} from '../src/ol/control/defaults.js';
+import Layer from '../src/ol/layer/WebGLTile.js';
+import Source from '../src/ol/source/ImageTile.js';
 
 const view = new View({
   center: [-9101767, 2822912],
@@ -17,11 +18,12 @@ const attributions =
 const map = new Map({
   controls: defaultControls().extend([new FullScreen()]),
   layers: [
-    new TileLayer({
-      source: new XYZ({
+    new Layer({
+      source: new Source({
         attributions: attributions,
         url:
-          'https://api.maptiler.com/tiles/satellite/{z}/{x}/{y}.jpg?key=' + key,
+          'https://api.maptiler.com/maps/satellite/{z}/{x}/{y}.jpg?key=' + key,
+        tileSize: 512,
         maxZoom: 20,
       }),
     }),

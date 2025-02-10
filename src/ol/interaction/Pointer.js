@@ -1,8 +1,8 @@
 /**
  * @module ol/interaction/Pointer
  */
-import Interaction from './Interaction.js';
 import MapBrowserEventType from '../MapBrowserEventType.js';
+import Interaction from './Interaction.js';
 
 /**
  * @typedef {Object} Options
@@ -50,7 +50,7 @@ class PointerInteraction extends Interaction {
     options = options ? options : {};
 
     super(
-      /** @type {import("./Interaction.js").InteractionOptions} */ (options)
+      /** @type {import("./Interaction.js").InteractionOptions} */ (options),
     );
 
     if (options.handleDownEvent) {
@@ -120,6 +120,7 @@ class PointerInteraction extends Interaction {
    * @param {import("../MapBrowserEvent.js").default} mapBrowserEvent Map browser event.
    * @return {boolean} `false` to stop event propagation.
    * @api
+   * @override
    */
   handleEvent(mapBrowserEvent) {
     if (!mapBrowserEvent.originalEvent) {
@@ -190,7 +191,7 @@ class PointerInteraction extends Interaction {
 
 /**
  * @param {Array<PointerEvent>} pointerEvents List of events.
- * @return {import("../pixel.js").Pixel} Centroid pixel.
+ * @return {{clientX: number, clientY: number}} Centroid pixel.
  */
 export function centroid(pointerEvents) {
   const length = pointerEvents.length;
@@ -200,7 +201,7 @@ export function centroid(pointerEvents) {
     clientX += pointerEvents[i].clientX;
     clientY += pointerEvents[i].clientY;
   }
-  return [clientX / length, clientY / length];
+  return {clientX: clientX / length, clientY: clientY / length};
 }
 
 export default PointerInteraction;

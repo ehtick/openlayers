@@ -1,24 +1,30 @@
 /**
  * @module ol/layer/Layer
  */
-import BaseLayer from './Base.js';
-import EventType from '../events/EventType.js';
-import LayerProperty from './Property.js';
-import RenderEventType from '../render/EventType.js';
+import View from '../View.js';
 import {assert} from '../asserts.js';
+import EventType from '../events/EventType.js';
 import {listen, unlistenByKey} from '../events.js';
+import {intersects} from '../extent.js';
+import RenderEventType from '../render/EventType.js';
+import BaseLayer from './Base.js';
+import LayerProperty from './Property.js';
 
 /**
  * @typedef {function(import("../Map.js").FrameState):HTMLElement} RenderFunction
+ */
+
+/**
+ * @typedef {'sourceready'|'change:source'} LayerEventType
  */
 
 /***
  * @template Return
  * @typedef {import("../Observable").OnSignature<import("../Observable").EventTypes, import("../events/Event.js").default, Return> &
  *   import("../Observable").OnSignature<import("./Base").BaseLayerObjectEventTypes|
- *     'change:source', import("../Object").ObjectEvent, Return> &
+ *     LayerEventType, import("../Object").ObjectEvent, Return> &
  *   import("../Observable").OnSignature<import("../render/EventType").LayerRenderEventTypes, import("../render/Event").default, Return> &
- *   import("../Observable").CombinedOnSignature<import("../Observable").EventTypes|import("./Base").BaseLayerObjectEventTypes|'change:source'|
+ *   import("../Observable").CombinedOnSignature<import("../Observable").EventTypes|import("./Base").BaseLayerObjectEventTypes|LayerEventType|
  *     import("../render/EventType").LayerRenderEventTypes, Return>} LayerOnSignature
  */
 
@@ -81,9 +87,11 @@ import {listen, unlistenByKey} from '../events.js';
  * [layer.setMap()]{@link module:ol/layer/Layer~Layer#setMap} instead.
  *
  * A generic `change` event is fired when the state of the source changes.
+ * A `sourceready` event is fired when the layer's source is ready.
  *
  * @fires import("../render/Event.js").RenderEvent#prerender
  * @fires import("../render/Event.js").RenderEvent#postrender
+ * @fires import("../events/Event.js").BaseEvent#sourceready
  *
  * @template {import("../source/Source.js").default} [SourceType=import("../source/Source.js").default]
  * @template {import("../renderer/Layer.js").default} [RendererType=import("../renderer/Layer.js").default]
@@ -139,6 +147,12 @@ class Layer extends BaseLayer {
     this.renderer_ = null;
 
     /**
+     * @private
+     * @type {boolean}
+     */
+    this.sourceReady_ = false;
+
+    /**
      * @protected
      * @type {boolean}
      */
@@ -155,7 +169,7 @@ class Layer extends BaseLayer {
 
     this.addChangeListener(
       LayerProperty.SOURCE,
-      this.handleSourcePropertyChange_
+      this.handleSourcePropertyChange_,
     );
 
     const source = options.source
@@ -167,6 +181,7 @@ class Layer extends BaseLayer {
   /**
    * @param {Array<import("./Layer.js").default>} [array] Array of layers (to be modified in place).
    * @return {Array<import("./Layer.js").default>} Array of layers.
+   * @override
    */
   getLayersArray(array) {
     array = array ? array : [];
@@ -177,6 +192,7 @@ class Layer extends BaseLayer {
   /**
    * @param {Array<import("./Layer.js").State>} [states] Optional list of layer states (to be modified in place).
    * @return {Array<import("./Layer.js").State>} List of layer states.
+   * @override
    */
   getLayerStatesArray(states) {
     states = states ? states : [];
@@ -203,6 +219,7 @@ class Layer extends BaseLayer {
 
   /**
    * @return {import("../source/Source.js").State} Source state.
+   * @override
    */
   getSourceState() {
     const source = this.getSource();
@@ -214,6 +231,11 @@ class Layer extends BaseLayer {
    */
   handleSourceChange_() {
     this.changed();
+    if (this.sourceReady_ || this.getSource().getState() !== 'ready') {
+      return;
+    }
+    this.sourceReady_ = true;
+    this.dispatchEvent('sourceready');
   }
 
   /**
@@ -224,26 +246,34 @@ class Layer extends BaseLayer {
       unlistenByKey(this.sourceChangeKey_);
       this.sourceChangeKey_ = null;
     }
+    this.sourceReady_ = false;
     const source = this.getSource();
     if (source) {
       this.sourceChangeKey_ = listen(
         source,
         EventType.CHANGE,
         this.handleSourceChange_,
-        this
+        this,
       );
+      if (source.getState() === 'ready') {
+        this.sourceReady_ = true;
+        setTimeout(() => {
+          this.dispatchEvent('sourceready');
+        }, 0);
+      }
+      this.clearRenderer();
     }
     this.changed();
   }
 
   /**
    * @param {import("../pixel").Pixel} pixel Pixel.
-   * @return {Promise<Array<import("../Feature").default>>} Promise that resolves with
+   * @return {Promise<Array<import("../Feature").FeatureLike>>} Promise that resolves with
    * an array of features.
    */
   getFeatures(pixel) {
     if (!this.renderer_) {
-      return new Promise((resolve) => resolve([]));
+      return Promise.resolve([]);
     }
     return this.renderer_.getFeatures(pixel);
   }
@@ -260,12 +290,82 @@ class Layer extends BaseLayer {
   }
 
   /**
+   * The layer is visible on the map view, i.e. within its min/max resolution or zoom and
+   * extent, not set to `visible: false`, and not inside a layer group that is set
+   * to `visible: false`.
+   * @param {View|import("../View.js").ViewStateLayerStateExtent} [view] View or {@link import("../Map.js").FrameState}.
+   * Only required when the layer is not added to a map.
+   * @return {boolean} The layer is visible in the map view.
+   * @api
+   */
+  isVisible(view) {
+    let frameState;
+    const map = this.getMapInternal();
+    if (!view && map) {
+      view = map.getView();
+    }
+    if (view instanceof View) {
+      frameState = {
+        viewState: view.getState(),
+        extent: view.calculateExtent(),
+      };
+    } else {
+      frameState = view;
+    }
+    if (!frameState.layerStatesArray && map) {
+      frameState.layerStatesArray = map.getLayerGroup().getLayerStatesArray();
+    }
+    let layerState;
+    if (frameState.layerStatesArray) {
+      layerState = frameState.layerStatesArray.find(
+        (layerState) => layerState.layer === this,
+      );
+      if (!layerState) {
+        return false;
+      }
+    } else {
+      layerState = this.getLayerState();
+    }
+
+    const layerExtent = this.getExtent();
+
+    return (
+      inView(layerState, frameState.viewState) &&
+      (!layerExtent || intersects(layerExtent, frameState.extent))
+    );
+  }
+
+  /**
+   * Get the attributions of the source of this layer for the given view.
+   * @param {View|import("../View.js").ViewStateLayerStateExtent} [view] View or {@link import("../Map.js").FrameState}.
+   * Only required when the layer is not added to a map.
+   * @return {Array<string>} Attributions for this layer at the given view.
+   * @api
+   */
+  getAttributions(view) {
+    if (!this.isVisible(view)) {
+      return [];
+    }
+    const getAttributions = this.getSource()?.getAttributions();
+    if (!getAttributions) {
+      return [];
+    }
+    const frameState =
+      view instanceof View ? view.getViewStateAndExtent() : view;
+    let attributions = getAttributions(frameState);
+    if (!Array.isArray(attributions)) {
+      attributions = [attributions];
+    }
+    return attributions;
+  }
+
+  /**
    * In charge to manage the rendering of the layer. One layer type is
    * bounded with one layer renderer.
    * @param {?import("../Map.js").FrameState} frameState Frame state.
    * @param {HTMLElement} target Target which the renderer may (but need not) use
    * for rendering its content.
-   * @return {HTMLElement} The rendered element.
+   * @return {HTMLElement|null} The rendered element.
    */
   render(frameState, target) {
     const layerRenderer = this.getRenderer();
@@ -274,6 +374,7 @@ class Layer extends BaseLayer {
       this.rendered = true;
       return layerRenderer.renderFrame(frameState, target);
     }
+    return null;
   }
 
   /**
@@ -281,6 +382,29 @@ class Layer extends BaseLayer {
    */
   unrender() {
     this.rendered = false;
+  }
+
+  /** @return {string} Declutter */
+  getDeclutter() {
+    return undefined;
+  }
+
+  /**
+   * @param {import("../Map.js").FrameState} frameState Frame state.
+   * @param {import("../layer/Layer.js").State} layerState Layer state.
+   */
+  renderDeclutter(frameState, layerState) {}
+
+  /**
+   * When the renderer follows a layout -> render approach, do the final rendering here.
+   * @param {import('../Map.js').FrameState} frameState Frame state
+   */
+  renderDeferred(frameState) {
+    const layerRenderer = this.getRenderer();
+    if (!layerRenderer) {
+      return;
+    }
+    layerRenderer.renderDeferred(frameState);
   }
 
   /**
@@ -329,25 +453,30 @@ class Layer extends BaseLayer {
       this.mapPrecomposeKey_ = listen(
         map,
         RenderEventType.PRECOMPOSE,
-        function (evt) {
-          const renderEvent =
-            /** @type {import("../render/Event.js").default} */ (evt);
-          const layerStatesArray = renderEvent.frameState.layerStatesArray;
-          const layerState = this.getLayerState(false);
-          // A layer can only be added to the map once. Use either `layer.setMap()` or `map.addLayer()`, not both.
-          assert(
-            !layerStatesArray.some(function (arrayLayerState) {
-              return arrayLayerState.layer === layerState.layer;
-            }),
-            67
-          );
-          layerStatesArray.push(layerState);
-        },
-        this
+        this.handlePrecompose_,
+        this,
       );
       this.mapRenderKey_ = listen(this, EventType.CHANGE, map.render, map);
       this.changed();
     }
+  }
+
+  /**
+   * @param {import("../events/Event.js").default} renderEvent Render event
+   * @private
+   */
+  handlePrecompose_(renderEvent) {
+    const layerStatesArray =
+      /** @type {import("../render/Event.js").default} */ (renderEvent)
+        .frameState.layerStatesArray;
+    const layerState = this.getLayerState(false);
+    assert(
+      !layerStatesArray.some(
+        (arrayLayerState) => arrayLayerState.layer === layerState.layer,
+      ),
+      'A layer can only be added to the map once. Use either `layer.setMap()` or `map.addLayer()`, not both.',
+    );
+    layerStatesArray.push(layerState);
   }
 
   /**
@@ -388,14 +517,21 @@ class Layer extends BaseLayer {
   }
 
   /**
-   * Clean up.
+   * This will clear the renderer so that a new one can be created next time it is needed
    */
-  disposeInternal() {
+  clearRenderer() {
     if (this.renderer_) {
       this.renderer_.dispose();
       delete this.renderer_;
     }
+  }
 
+  /**
+   * Clean up.
+   * @override
+   */
+  disposeInternal() {
+    this.clearRenderer();
     this.setSource(null);
     super.disposeInternal();
   }

@@ -1,8 +1,9 @@
+import {spy as sinonSpy} from 'sinon';
 import Collection from '../../../../../src/ol/Collection.js';
-import Layer from '../../../../../src/ol/layer/Layer.js';
-import LayerGroup from '../../../../../src/ol/layer/Group.js';
-import Source from '../../../../../src/ol/source/Source.js';
 import {getIntersection} from '../../../../../src/ol/extent.js';
+import LayerGroup from '../../../../../src/ol/layer/Group.js';
+import Layer from '../../../../../src/ol/layer/Layer.js';
+import Source from '../../../../../src/ol/source/Source.js';
 import {getUid} from '../../../../../src/ol/util.js';
 
 describe('ol/layer/Group', function () {
@@ -69,7 +70,7 @@ describe('ol/layer/Group', function () {
       group = new LayerGroup({
         layers: [layer],
       });
-      listener = sinon.spy();
+      listener = sinonSpy();
     });
 
     afterEach(function () {
@@ -105,7 +106,7 @@ describe('ol/layer/Group', function () {
       group = new LayerGroup({
         layers: [layer],
       });
-      listener = sinon.spy();
+      listener = sinonSpy();
     });
 
     afterEach(function () {
@@ -560,7 +561,7 @@ describe('ol/layer/Group', function () {
       });
       const layerStatesArray = group.getLayerStatesArray();
       expect(layerStatesArray[0].extent).to.eql(
-        getIntersection(layer3.getExtent(), groupExtent)
+        getIntersection(layer3.getExtent(), groupExtent),
       );
       group.dispose();
     });

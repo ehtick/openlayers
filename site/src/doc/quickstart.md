@@ -41,6 +41,7 @@ Open the `index.html` file in a text editor.  It should look something like this
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quick Start</title>
   </head>
   <body>
     <div id="map"></div>
@@ -57,21 +58,22 @@ Open the `main.js` file in a text editor.  It should look something like this:
 
 ```js
 import './style.css';
-import {Map, View} from 'ol';
-import TileLayer from 'ol/layer/Tile';
-import OSM from 'ol/source/OSM';
+import Map from 'ol/Map.js';
+import OSM from 'ol/source/OSM.js';
+import TileLayer from 'ol/layer/Tile.js';
+import View from 'ol/View.js';
 
 const map = new Map({
   target: 'map',
   layers: [
     new TileLayer({
-      source: new OSM()
-    })
+      source: new OSM(),
+    }),
   ],
   view: new View({
     center: [0, 0],
-    zoom: 2
-  })
+    zoom: 2,
+  }),
 });
 ```
 

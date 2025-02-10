@@ -1,4 +1,5 @@
 import {
+  breakDownFlatStyle,
   colorDecodeId,
   colorEncodeId,
   getBlankImageData,
@@ -11,6 +12,7 @@ import {
   create as createTransform,
   makeInverse as makeInverseTransform,
 } from '../../../../../../src/ol/transform.js';
+import {ShaderBuilder} from '../../../../../../src/ol/webgl/ShaderBuilder.js';
 
 describe('webgl render utils', function () {
   describe('writePointFeatureToBuffers', function () {
@@ -31,7 +33,7 @@ describe('webgl render utils', function () {
         4,
         vertexBuffer,
         indexBuffer,
-        0
+        0,
       );
 
       expect(vertexBuffer[0]).to.eql(10);
@@ -69,7 +71,7 @@ describe('webgl render utils', function () {
         8,
         vertexBuffer,
         indexBuffer,
-        2
+        2,
       );
 
       expect(vertexBuffer[0]).to.eql(10);
@@ -115,7 +117,7 @@ describe('webgl render utils', function () {
         0,
         vertexBuffer,
         indexBuffer,
-        0
+        0,
       );
       positions = writePointFeatureToBuffers(
         instructions,
@@ -123,7 +125,7 @@ describe('webgl render utils', function () {
         vertexBuffer,
         indexBuffer,
         0,
-        positions
+        positions,
       );
       positions = writePointFeatureToBuffers(
         instructions,
@@ -131,7 +133,7 @@ describe('webgl render utils', function () {
         vertexBuffer,
         indexBuffer,
         0,
-        positions
+        positions,
       );
 
       expect(vertexBuffer[0]).to.eql(10);
@@ -168,6 +170,7 @@ describe('webgl render utils', function () {
   describe('writeLineSegmentToBuffers', function () {
     let vertexArray, indexArray, instructions;
     let instructionsTransform, invertInstructionsTransform;
+    let currentLength, currentAngleTangentSum;
 
     beforeEach(function () {
       vertexArray = [];
@@ -177,99 +180,142 @@ describe('webgl render utils', function () {
 
       instructionsTransform = createTransform();
       invertInstructionsTransform = createTransform();
-      composeTransform(instructionsTransform, 0, 0, 10, 20, 0, -50, 200);
+      composeTransform(instructionsTransform, 0, 0, 10, 10, 0, -50, 200);
       makeInverseTransform(invertInstructionsTransform, instructionsTransform);
     });
 
     describe('isolated segment', function () {
       beforeEach(function () {
-        instructions.set([0, 0, 0, 2, 5, 5, 25, 5]);
-        writeLineSegmentToBuffers(
+        instructions.set([0, 0, 10, 0, 2, 20, 5, 5, 30, 25, 5, 40]);
+        const result = writeLineSegmentToBuffers(
           instructions,
-          4,
           6,
+          9,
           null,
           null,
           vertexArray,
           indexArray,
           [],
-          instructionsTransform,
-          invertInstructionsTransform
+          invertInstructionsTransform,
+          100,
+          100,
         );
+        currentLength = result.length;
+        currentAngleTangentSum = result.angle;
       });
+      // we expect 4 vertices (one quad) with 10 attributes each:
+      // Xstart, Ystart, Mstart, Xend, Yend, Mend, joinAngleStart, joinAngleEnd, base distance, vertex number (0..3)
       it('generates a quad for the segment', function () {
-        expect(vertexArray).to.have.length(20);
-        expect(vertexArray).to.eql([
-          5, 5, 25, 5, 0, 5, 5, 25, 5, 100000000, 5, 5, 25, 5, 200000000, 5, 5,
-          25, 5, 300000000,
+        expect(vertexArray).to.have.length(40);
+        expect(vertexArray.slice(0, 10)).to.eql([
+          5, 5, 30, 25, 5, 40, -1, -1, 100, 100,
+        ]);
+        expect(vertexArray.slice(10, 20)).to.eql([
+          5, 5, 30, 25, 5, 40, -1, -1, 100, 10100,
+        ]);
+        expect(vertexArray.slice(20, 30)).to.eql([
+          5, 5, 30, 25, 5, 40, -1, -1, 100, 20100,
+        ]);
+        expect(vertexArray.slice(30, 40)).to.eql([
+          5, 5, 30, 25, 5, 40, -1, -1, 100, 30100,
         ]);
         expect(indexArray).to.have.length(6);
         expect(indexArray).to.eql([0, 1, 2, 1, 3, 2]);
+      });
+      it('computes the new current length', () => {
+        expect(currentLength).to.eql(102);
+      });
+      it('angle tangent sum stays the same', () => {
+        expect(currentAngleTangentSum).to.eql(100);
       });
     });
 
     describe('isolated segment with custom attributes', function () {
       beforeEach(function () {
-        instructions.set([888, 999, 2, 5, 5, 25, 5]);
-        writeLineSegmentToBuffers(
+        instructions.set([888, 999, 2, 5, 5, 30, 25, 5, 40]);
+        const result = writeLineSegmentToBuffers(
           instructions,
           3,
-          5,
+          6,
           null,
           null,
           vertexArray,
           indexArray,
           [888, 999],
-          instructionsTransform,
-          invertInstructionsTransform
+          invertInstructionsTransform,
+          100,
+          100,
         );
+        currentLength = result.length;
+        currentAngleTangentSum = result.angle;
       });
+      // we expect 4 vertices (one quad) with 10 attributes each:
+      // Xstart, Ystart, Xend, Yend, joinAngleStart, joinAngleEnd, base distance, vertex number (0..3), + 2 custom attributes
       it('adds custom attributes in the vertices buffer', function () {
-        expect(vertexArray).to.have.length(28);
-        expect(vertexArray).to.eql([
-          5, 5, 25, 5, 0, 888, 999, 5, 5, 25, 5, 100000000, 888, 999, 5, 5, 25,
-          5, 200000000, 888, 999, 5, 5, 25, 5, 300000000, 888, 999,
+        expect(vertexArray).to.have.length(48);
+        expect(vertexArray.slice(0, 12)).to.eql([
+          5, 5, 30, 25, 5, 40, -1, -1, 100, 100, 888, 999,
+        ]);
+        expect(vertexArray.slice(12, 24)).to.eql([
+          5, 5, 30, 25, 5, 40, -1, -1, 100, 10100, 888, 999,
+        ]);
+        expect(vertexArray.slice(24, 36)).to.eql([
+          5, 5, 30, 25, 5, 40, -1, -1, 100, 20100, 888, 999,
+        ]);
+        expect(vertexArray.slice(36, 48)).to.eql([
+          5, 5, 30, 25, 5, 40, -1, -1, 100, 30100, 888, 999,
         ]);
       });
       it('does not impact indices array', function () {
         expect(indexArray).to.have.length(6);
       });
+      it('computes the new current length', () => {
+        expect(currentLength).to.eql(102);
+      });
+      it('angle tangent sum stays the same', () => {
+        expect(currentAngleTangentSum).to.eql(100);
+      });
     });
 
     describe('segment with a point coming before it, join angle < PI', function () {
       beforeEach(function () {
-        instructions.set([2, 5, 5, 25, 5, 5, 20]);
-        writeLineSegmentToBuffers(
+        instructions.set([2, 5, 5, 0, 25, 5, 0, 5, 20, 0]);
+        const result = writeLineSegmentToBuffers(
           instructions,
           1,
-          3,
-          5,
+          4,
+          7,
           null,
           vertexArray,
           indexArray,
           [],
-          instructionsTransform,
-          invertInstructionsTransform
+          invertInstructionsTransform,
+          0,
+          10,
         );
+        currentAngleTangentSum = result.angle;
       });
       it('generate the correct amount of vertices', () => {
-        expect(vertexArray).to.have.length(20);
+        expect(vertexArray).to.have.length(40);
       });
-      it('correctly encodes the join angle', () => {
-        expect(vertexArray[4]).to.eql(2356);
-        expect(vertexArray[9]).to.eql(100002356);
-        expect(vertexArray[14]).to.eql(200002356);
-        expect(vertexArray[19]).to.eql(300002356);
+      it('correctly encodes the join angles', () => {
+        expect(vertexArray.slice(6, 8)).to.eql([Math.PI / 2, -1]);
+        expect(vertexArray.slice(16, 18)).to.eql([Math.PI / 2, -1]);
+        expect(vertexArray.slice(26, 28)).to.eql([Math.PI / 2, -1]);
+        expect(vertexArray.slice(36, 38)).to.eql([Math.PI / 2, -1]);
       });
       it('does not impact indices array', function () {
         expect(indexArray).to.have.length(6);
+      });
+      it('angle tangent sum decreases by one', () => {
+        expect(currentAngleTangentSum).roughlyEqual(9, 1e-9);
       });
     });
 
     describe('segment with a point coming before it, join angle > PI', function () {
       beforeEach(function () {
         instructions.set([2, 5, 5, 25, 5, 5, -10]);
-        writeLineSegmentToBuffers(
+        const result = writeLineSegmentToBuffers(
           instructions,
           1,
           3,
@@ -278,58 +324,33 @@ describe('webgl render utils', function () {
           vertexArray,
           indexArray,
           [],
-          instructionsTransform,
-          invertInstructionsTransform
+          invertInstructionsTransform,
+          0,
+          10,
         );
+        currentAngleTangentSum = result.angle;
       });
       it('generate the correct amount of vertices', () => {
-        expect(vertexArray).to.have.length(20);
+        expect(vertexArray).to.have.length(40);
       });
       it('correctly encodes the join angle', () => {
-        expect(vertexArray[4]).to.eql(7069);
-        expect(vertexArray[9]).to.eql(100007069);
-        expect(vertexArray[14]).to.eql(200007069);
-        expect(vertexArray[19]).to.eql(300007069);
+        expect(vertexArray.slice(6, 8)).to.eql([(Math.PI * 3) / 2, -1]);
+        expect(vertexArray.slice(16, 18)).to.eql([(Math.PI * 3) / 2, -1]);
+        expect(vertexArray.slice(26, 28)).to.eql([(Math.PI * 3) / 2, -1]);
+        expect(vertexArray.slice(36, 38)).to.eql([(Math.PI * 3) / 2, -1]);
       });
       it('does not impact indices array', function () {
         expect(indexArray).to.have.length(6);
       });
-    });
-
-    describe('segment with a point coming after it, join angle < PI', function () {
-      beforeEach(function () {
-        instructions.set([2, 5, 5, 25, 5, 5, 20]);
-        writeLineSegmentToBuffers(
-          instructions,
-          1,
-          3,
-          null,
-          5,
-          vertexArray,
-          indexArray,
-          [],
-          instructionsTransform,
-          invertInstructionsTransform
-        );
-      });
-      it('generate the correct amount of vertices', () => {
-        expect(vertexArray).to.have.length(20);
-      });
-      it('correctly encodes the join angle', () => {
-        expect(vertexArray[4]).to.eql(88870000);
-        expect(vertexArray[9]).to.eql(188870000);
-        expect(vertexArray[14]).to.eql(288870000);
-        expect(vertexArray[19]).to.eql(388870000);
-      });
-      it('does not impact indices array', function () {
-        expect(indexArray).to.have.length(6);
+      it('angle tangent sum increases by one', () => {
+        expect(currentAngleTangentSum).roughlyEqual(11, 1e-9);
       });
     });
 
     describe('segment with a point coming after it, join angle > PI', function () {
       beforeEach(function () {
-        instructions.set([2, 5, 5, 25, 5, 25, -10]);
-        writeLineSegmentToBuffers(
+        instructions.set([2, 5, 5, 25, 5, 5, 25]);
+        const result = writeLineSegmentToBuffers(
           instructions,
           1,
           3,
@@ -338,21 +359,64 @@ describe('webgl render utils', function () {
           vertexArray,
           indexArray,
           [],
-          instructionsTransform,
-          invertInstructionsTransform
+          invertInstructionsTransform,
+          0,
+          10,
         );
+        currentAngleTangentSum = result.angle;
       });
       it('generate the correct amount of vertices', () => {
-        expect(vertexArray).to.have.length(20);
+        expect(vertexArray).to.have.length(40);
       });
-      it('correctly encodes join angles', () => {
-        expect(vertexArray[4]).to.eql(23560000);
-        expect(vertexArray[9]).to.eql(123560000);
-        expect(vertexArray[14]).to.eql(223560000);
-        expect(vertexArray[19]).to.eql(323560000);
+      it('correctly encodes the join angle', () => {
+        expect(vertexArray.slice(6, 8)).to.eql([-1, (Math.PI * 7) / 4]);
+        expect(vertexArray.slice(16, 18)).to.eql([-1, (Math.PI * 7) / 4]);
+        expect(vertexArray.slice(26, 28)).to.eql([-1, (Math.PI * 7) / 4]);
+        expect(vertexArray.slice(36, 38)).to.eql([-1, (Math.PI * 7) / 4]);
       });
       it('does not impact indices array', function () {
         expect(indexArray).to.have.length(6);
+      });
+      it('angle tangent sum decreases', () => {
+        expect(currentAngleTangentSum).roughlyEqual(
+          10 - (1 + Math.sqrt(2)),
+          1e-9,
+        );
+      });
+    });
+
+    describe('segment with a point coming after it, join angle < PI', function () {
+      beforeEach(function () {
+        instructions.set([2, 5, 5, 25, 5, 25, -10]);
+        const result = writeLineSegmentToBuffers(
+          instructions,
+          1,
+          3,
+          null,
+          5,
+          vertexArray,
+          indexArray,
+          [],
+          invertInstructionsTransform,
+          0,
+          10,
+        );
+        currentAngleTangentSum = result.angle;
+      });
+      it('generate the correct amount of vertices', () => {
+        expect(vertexArray).to.have.length(40);
+      });
+      it('correctly encodes join angles', () => {
+        expect(vertexArray.slice(6, 8)).to.eql([-1, Math.PI / 2]);
+        expect(vertexArray.slice(16, 18)).to.eql([-1, Math.PI / 2]);
+        expect(vertexArray.slice(26, 28)).to.eql([-1, Math.PI / 2]);
+        expect(vertexArray.slice(36, 38)).to.eql([-1, Math.PI / 2]);
+      });
+      it('does not impact indices array', function () {
+        expect(indexArray).to.have.length(6);
+      });
+      it('angle tangent sum increases', () => {
+        expect(currentAngleTangentSum).roughlyEqual(11, 1e-9);
       });
     });
   });
@@ -377,7 +441,7 @@ describe('webgl render utils', function () {
           3,
           vertexArray,
           indexArray,
-          0
+          0,
         );
       });
       it('generates triangles correctly', function () {
@@ -385,10 +449,10 @@ describe('webgl render utils', function () {
         expect(vertexArray).to.eql([
           0, 0, 10, 0, 15, 6, 10, 12, 0, 12, 0, 0, 3, 3, 5, 1, 7, 3, 5, 5, 3, 3,
         ]);
-        expect(indexArray).to.have.length(24);
+        expect(indexArray).to.have.length(27);
         expect(indexArray).to.eql([
-          4, 0, 9, 7, 10, 0, 1, 2, 3, 3, 4, 9, 7, 0, 1, 3, 9, 8, 8, 7, 1, 1, 3,
-          8,
+          1, 2, 3, 3, 4, 0, 3, 0, 10, 7, 10, 0, 3, 10, 9, 7, 0, 1, 3, 9, 8, 8,
+          7, 1, 1, 3, 8,
         ]);
       });
       it('correctly returns the new index', function () {
@@ -407,7 +471,7 @@ describe('webgl render utils', function () {
           3,
           vertexArray,
           indexArray,
-          1
+          1,
         );
       });
       it('generates triangles correctly', function () {
@@ -416,10 +480,10 @@ describe('webgl render utils', function () {
           0, 0, 1234, 10, 0, 1234, 15, 6, 1234, 10, 12, 1234, 0, 12, 1234, 0, 0,
           1234, 3, 3, 1234, 5, 1, 1234, 7, 3, 1234, 5, 5, 1234, 3, 3, 1234,
         ]);
-        expect(indexArray).to.have.length(24);
+        expect(indexArray).to.have.length(27);
         expect(indexArray).to.eql([
-          4, 0, 9, 7, 10, 0, 1, 2, 3, 3, 4, 9, 7, 0, 1, 3, 9, 8, 8, 7, 1, 1, 3,
-          8,
+          1, 2, 3, 3, 4, 0, 3, 0, 10, 7, 10, 0, 3, 10, 9, 7, 0, 1, 3, 9, 8, 8,
+          7, 1, 1, 3, 8,
         ]);
       });
       it('correctly returns the new index', function () {
@@ -462,7 +526,7 @@ describe('webgl render utils', function () {
         encoded[0] * 255,
         encoded[1] * 255,
         encoded[2] * 255,
-        encoded[3] * 255
+        encoded[3] * 255,
       );
       const arr = [
         typed[0] / 255,
@@ -472,6 +536,146 @@ describe('webgl render utils', function () {
       ];
       const decoded = colorDecodeId(arr);
       expect(decoded).to.eql(91612);
+    });
+  });
+
+  describe('breakDownFlatStyle', function () {
+    it('breaks down a single flat style', function () {
+      const style = {
+        'fill-color': 'red',
+        'fill-opacity': 0.5,
+        'stroke-color': 'blue',
+        'stroke-width': 2,
+      };
+      const result = breakDownFlatStyle(style);
+      expect(result).to.eql([
+        {
+          style,
+        },
+      ]);
+    });
+    it('breaks down an array of flat styles', function () {
+      const styles = [
+        {
+          'fill-color': 'red',
+          'fill-opacity': 0.5,
+        },
+        {
+          'stroke-color': 'blue',
+          'stroke-width': 2,
+        },
+      ];
+      const result = breakDownFlatStyle(styles);
+      expect(result).to.eql([
+        {
+          style: styles[0],
+        },
+        {
+          style: styles[1],
+        },
+      ]);
+    });
+    it('breaks down an array of rules, generating appropriate filters for "else" rules', function () {
+      const rules = [
+        {
+          filter: ['>', ['get', 'size'], '10'],
+          style: [
+            {'fill-color': 'red', 'fill-opacity': 0.5},
+            {'fill-color': 'green', 'fill-opacity': 0.5},
+          ],
+        },
+        {
+          else: true,
+          style: {'circle-radius': 5, 'circle-fill-color': 'red'},
+        },
+        {
+          else: true,
+          filter: ['==', ['get', 'type'], 'road'],
+          style: {'stroke-color': 'blue', 'stroke-width': 2},
+        },
+        {
+          else: true,
+          style: [
+            {'stroke-color': 'green', 'stroke-width': 2},
+            {'stroke-color': 'white', 'stroke-width': 1},
+          ],
+        },
+        {
+          style: {'stroke-color': 'yellow', 'stroke-width': 2},
+        },
+        {
+          filter: ['==', ['get', 'type'], 'street'],
+          style: {'stroke-color': 'black', 'stroke-width': 2},
+        },
+      ];
+      const result = breakDownFlatStyle(rules);
+      expect(result).to.eql([
+        {
+          filter: ['>', ['get', 'size'], '10'],
+          style: {'fill-color': 'red', 'fill-opacity': 0.5},
+        },
+        {
+          filter: ['>', ['get', 'size'], '10'],
+          style: {'fill-color': 'green', 'fill-opacity': 0.5},
+        },
+        {
+          filter: ['!', ['>', ['get', 'size'], '10']],
+          style: {'circle-radius': 5, 'circle-fill-color': 'red'},
+        },
+        {
+          filter: [
+            'all',
+            ['!', ['>', ['get', 'size'], '10']],
+            ['==', ['get', 'type'], 'road'],
+          ],
+          style: {'stroke-color': 'blue', 'stroke-width': 2},
+        },
+        {
+          'filter': [
+            'all',
+            ['!', ['>', ['get', 'size'], '10']],
+            ['!', ['==', ['get', 'type'], 'road']],
+          ],
+          style: {'stroke-color': 'green', 'stroke-width': 2},
+        },
+        {
+          'filter': [
+            'all',
+            ['!', ['>', ['get', 'size'], '10']],
+            ['!', ['==', ['get', 'type'], 'road']],
+          ],
+          style: {'stroke-color': 'white', 'stroke-width': 1},
+        },
+        {
+          style: {'stroke-color': 'yellow', 'stroke-width': 2},
+        },
+        {
+          filter: ['==', ['get', 'type'], 'street'],
+          style: {'stroke-color': 'black', 'stroke-width': 2},
+        },
+      ]);
+    });
+    it('returns an array of shaders as is', function () {
+      const shaders = [
+        {
+          builder: new ShaderBuilder(),
+          attributes: [],
+        },
+        {
+          builder: new ShaderBuilder(),
+          attributes: [],
+        },
+      ];
+      const result = breakDownFlatStyle(shaders);
+      expect(result).to.eql(shaders);
+    });
+    it('returns a single shader as array', function () {
+      const shader = {
+        builder: new ShaderBuilder(),
+        attributes: [],
+      };
+      const result = breakDownFlatStyle(shader);
+      expect(result).to.eql([shader]);
     });
   });
 });

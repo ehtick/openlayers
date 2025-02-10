@@ -2,11 +2,13 @@
  * @module ol/interaction/Translate
  */
 import Collection from '../Collection.js';
+import Feature from '../Feature.js';
 import Event from '../events/Event.js';
-import InteractionProperty from './Property.js';
-import PointerInteraction from './Pointer.js';
-import {TRUE} from '../functions.js';
 import {always} from '../events/condition.js';
+import {TRUE} from '../functions.js';
+import {fromUserCoordinate, getUserProjection} from '../proj.js';
+import PointerInteraction from './Pointer.js';
+import InteractionProperty from './Property.js';
 
 /**
  * @enum {string}
@@ -33,20 +35,20 @@ const TranslateEventType = {
 };
 
 /**
- * A function that takes an {@link module:ol/Feature~Feature} or
- * {@link module:ol/render/Feature~RenderFeature} and an
+ * A function that takes a {@link module:ol/Feature~Feature} or
+ * {@link module:ol/render/Feature~RenderFeature} and a
  * {@link module:ol/layer/Layer~Layer} and returns `true` if the feature may be
  * translated or `false` otherwise.
- * @typedef {function(import("../Feature.js").FeatureLike, import("../layer/Layer.js").default<import("../source/Source").default>):boolean} FilterFunction
+ * @typedef {function(Feature, import("../layer/Layer.js").default<import("../source/Source").default>):boolean} FilterFunction
  */
 
 /**
  * @typedef {Object} Options
  * @property {import("../events/condition.js").Condition} [condition] A function that
- * takes an {@link module:ol/MapBrowserEvent~MapBrowserEvent} and returns a
+ * takes a {@link module:ol/MapBrowserEvent~MapBrowserEvent} and returns a
  * boolean to indicate whether that event should be handled.
  * Default is {@link module:ol/events/condition.always}.
- * @property {Collection<import("../Feature.js").default>} [features] Features contained in this collection will be able to be translated together.
+ * @property {Collection<Feature>} [features] Features contained in this collection will be able to be translated together.
  * @property {Array<import("../layer/Layer.js").default>|function(import("../layer/Layer.js").default<import("../source/Source").default>): boolean} [layers] A list of layers from which features should be
  * translated. Alternatively, a filter function can be provided. The
  * function will be called for each layer in the map and should return
@@ -54,7 +56,7 @@ const TranslateEventType = {
  * absent, all visible layers will be considered translatable.
  * Not used if `features` is provided.
  * @property {FilterFunction} [filter] A function
- * that takes an {@link module:ol/Feature~Feature} and an
+ * that takes a {@link module:ol/Feature~Feature} and an
  * {@link module:ol/layer/Layer~Layer} and returns `true` if the feature may be
  * translated or `false` otherwise. Not used if `features` is provided.
  * @property {number} [hitTolerance=0] Hit-detection tolerance. Pixels inside the radius around the given position
@@ -69,7 +71,7 @@ const TranslateEventType = {
 export class TranslateEvent extends Event {
   /**
    * @param {TranslateEventType} type Type.
-   * @param {Collection<import("../Feature.js").default>} features The features translated.
+   * @param {Collection<Feature>} features The features translated.
    * @param {import("../coordinate.js").Coordinate} coordinate The event coordinate.
    * @param {import("../coordinate.js").Coordinate} startCoordinate The original coordinates before.translation started
    * @param {import("../MapBrowserEvent.js").default} mapBrowserEvent Map browser event.
@@ -79,7 +81,7 @@ export class TranslateEvent extends Event {
 
     /**
      * The features being translated.
-     * @type {Collection<import("../Feature.js").default>}
+     * @type {Collection<Feature>}
      * @api
      */
     this.features = features;
@@ -168,7 +170,7 @@ class Translate extends PointerInteraction {
     this.startCoordinate_ = null;
 
     /**
-     * @type {Collection<import("../Feature.js").default>|null}
+     * @type {Collection<Feature>|null}
      * @private
      */
     this.features_ = options.features !== undefined ? options.features : null;
@@ -213,14 +215,14 @@ class Translate extends PointerInteraction {
     this.condition_ = options.condition ? options.condition : always;
 
     /**
-     * @type {import("../Feature.js").default}
+     * @type {Feature}
      * @private
      */
     this.lastFeature_ = null;
 
     this.addChangeListener(
       InteractionProperty.ACTIVE,
-      this.handleActiveChanged_
+      this.handleActiveChanged_,
     );
   }
 
@@ -228,6 +230,7 @@ class Translate extends PointerInteraction {
    * Handle pointer down events.
    * @param {import("../MapBrowserEvent.js").default} event Event.
    * @return {boolean} If the event was consumed.
+   * @override
    */
   handleDownEvent(event) {
     if (!event.originalEvent || !this.condition_(event)) {
@@ -247,8 +250,8 @@ class Translate extends PointerInteraction {
           features,
           event.coordinate,
           this.startCoordinate_,
-          event
-        )
+          event,
+        ),
       );
       return true;
     }
@@ -259,6 +262,7 @@ class Translate extends PointerInteraction {
    * Handle pointer up events.
    * @param {import("../MapBrowserEvent.js").default} event Event.
    * @return {boolean} If the event was consumed.
+   * @override
    */
   handleUpEvent(event) {
     if (this.lastCoordinate_) {
@@ -273,8 +277,8 @@ class Translate extends PointerInteraction {
           features,
           event.coordinate,
           this.startCoordinate_,
-          event
-        )
+          event,
+        ),
       );
       // cleanup
       this.startCoordinate_ = null;
@@ -286,18 +290,33 @@ class Translate extends PointerInteraction {
   /**
    * Handle pointer drag events.
    * @param {import("../MapBrowserEvent.js").default} event Event.
+   * @override
    */
   handleDragEvent(event) {
     if (this.lastCoordinate_) {
       const newCoordinate = event.coordinate;
-      const deltaX = newCoordinate[0] - this.lastCoordinate_[0];
-      const deltaY = newCoordinate[1] - this.lastCoordinate_[1];
+      const projection = event.map.getView().getProjection();
+
+      const newViewCoordinate = fromUserCoordinate(newCoordinate, projection);
+      const lastViewCoordinate = fromUserCoordinate(
+        this.lastCoordinate_,
+        projection,
+      );
+      const deltaX = newViewCoordinate[0] - lastViewCoordinate[0];
+      const deltaY = newViewCoordinate[1] - lastViewCoordinate[1];
 
       const features = this.features_ || new Collection([this.lastFeature_]);
+      const userProjection = getUserProjection();
 
       features.forEach(function (feature) {
         const geom = feature.getGeometry();
-        geom.translate(deltaX, deltaY);
+        if (userProjection) {
+          geom.transform(userProjection, projection);
+          geom.translate(deltaX, deltaY);
+          geom.transform(projection, userProjection);
+        } else {
+          geom.translate(deltaX, deltaY);
+        }
         feature.setGeometry(geom);
       });
 
@@ -309,8 +328,8 @@ class Translate extends PointerInteraction {
           features,
           newCoordinate,
           this.startCoordinate_,
-          event
-        )
+          event,
+        ),
       );
     }
   }
@@ -318,6 +337,7 @@ class Translate extends PointerInteraction {
   /**
    * Handle pointer move events.
    * @param {import("../MapBrowserEvent.js").default} event Event.
+   * @override
    */
   handleMoveEvent(event) {
     const elem = event.map.getViewport();
@@ -337,24 +357,26 @@ class Translate extends PointerInteraction {
    * features.
    * @param {import("../pixel.js").Pixel} pixel Pixel coordinate to test for intersection.
    * @param {import("../Map.js").default} map Map to test the intersection on.
-   * @return {import("../Feature.js").default} Returns the feature found at the specified pixel
+   * @return {Feature} Returns the feature found at the specified pixel
    * coordinates.
    * @private
    */
   featuresAtPixel_(pixel, map) {
     return map.forEachFeatureAtPixel(
       pixel,
-      function (feature, layer) {
-        if (this.filter_(feature, layer)) {
-          if (!this.features_ || this.features_.getArray().includes(feature)) {
-            return feature;
-          }
+      (feature, layer) => {
+        if (!(feature instanceof Feature) || !this.filter_(feature, layer)) {
+          return undefined;
         }
-      }.bind(this),
+        if (this.features_ && !this.features_.getArray().includes(feature)) {
+          return undefined;
+        }
+        return feature;
+      },
       {
         layerFilter: this.layerFilter_,
         hitTolerance: this.hitTolerance_,
-      }
+      },
     );
   }
 
@@ -382,6 +404,7 @@ class Translate extends PointerInteraction {
    * Subclasses may set up event handlers to get notified about changes to
    * the map here.
    * @param {import("../Map.js").default} map Map.
+   * @override
    */
   setMap(map) {
     const oldMap = this.getMap();

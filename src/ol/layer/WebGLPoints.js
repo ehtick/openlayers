@@ -1,14 +1,20 @@
 /**
  * @module ol/layer/WebGLPoints
  */
-import Layer from './Layer.js';
 import WebGLPointsLayerRenderer from '../renderer/webgl/PointsLayer.js';
-import {parseLiteralStyle} from '../webgl/ShaderBuilder.js';
+import {parseLiteralStyle} from '../webgl/styleparser.js';
+import Layer from './Layer.js';
 
 /**
- * @template {import("../source/Vector.js").default<import("../geom/Point.js").default>} VectorSourceType
+ * @template {import("../source/Vector.js").default<import('../Feature').FeatureLike>} VectorSourceType
  * @typedef {Object} Options
- * @property {import('../style/literal.js').LiteralStyle} style Literal style to apply to the layer features.
+ * @property {import('../style/flat.js').FlatStyle} style Literal style to apply to the layer features.
+ * @property {import("../expr/expression.js").EncodedExpression} [filter] The filter used
+ * to determine if a style applies. If no filter is included, the rule always applies.
+ * @property {import('../style/flat.js').StyleVariables} [variables] Style variables. Each variable must hold a literal value (not
+ * an expression). These variables can be used as {@link import("../expr/expression.js").ExpressionValue expressions} in the styles properties
+ * using the `['var', 'varName']` operator.
+ * To update style variables, use the {@link import("./WebGLPoints.js").default#updateStyleVariables} method.
  * @property {string} [className='ol-layer'] A CSS class name to set to the layer element.
  * @property {number} [opacity=1] Opacity (0, 1).
  * @property {boolean} [visible=true] Visibility.
@@ -40,23 +46,18 @@ import {parseLiteralStyle} from '../webgl/ShaderBuilder.js';
  * Here are a few samples of literal style objects:
  * ```js
  * const style = {
- *   symbol: {
- *     symbolType: 'circle',
- *     size: 8,
- *     color: '#33AAFF',
- *     opacity: 0.9
- *   }
+ *   'circle-radius': 8,
+ *   'circle-fill-color': '#33AAFF',
+ *   'circle-opacity': 0.9
  * }
  * ```
  *
  * ```js
  * const style = {
- *   symbol: {
- *     symbolType: 'image',
- *     offset: [0, 12],
- *     size: [4, 8],
- *     src: '../static/exclamation-mark.png'
- *   }
+ *   'icon-src': '../static/exclamation-mark.png',
+ *   'icon-offset': [0, 12],
+ *   'icon-width': 4,
+ *   'icon-height': 8
  * }
  * ```
  *
@@ -67,9 +68,11 @@ import {parseLiteralStyle} from '../webgl/ShaderBuilder.js';
  * property on the layer object; for example, setting `title: 'My Title'` in the
  * options means that `title` is observable, and has get/set accessors.
  *
- * @template {import("../source/Vector.js").default<import("../geom/Point.js").default>} VectorSourceType
+ * @template {import("../source/Vector.js").default<import('../Feature').FeatureLike>} VectorSourceType
  * @extends {Layer<VectorSourceType, WebGLPointsLayerRenderer>}
- * @fires import("../render/Event.js").RenderEvent
+ * @fires import("../render/Event.js").RenderEvent#prerender
+ * @fires import("../render/Event.js").RenderEvent#postrender
+ * @deprecated Use ol/layer/WebGLVector instead
  */
 class WebGLPointsLayer extends Layer {
   /**
@@ -81,16 +84,20 @@ class WebGLPointsLayer extends Layer {
     super(baseOptions);
 
     /**
+     * @type {import('../style/flat.js').StyleVariables}
      * @private
-     * @type {import('../webgl/ShaderBuilder.js').StyleParseResult}
      */
-    this.parseResult_ = parseLiteralStyle(options.style);
+    this.styleVariables_ = options.variables || {};
 
     /**
-     * @type {Object<string, (string|number)>}
      * @private
+     * @type {import('../webgl/styleparser.js').StyleParseResult}
      */
-    this.styleVariables_ = options.style.variables || {};
+    this.parseResult_ = parseLiteralStyle(
+      options.style,
+      this.styleVariables_,
+      options.filter,
+    );
 
     /**
      * @private
@@ -99,18 +106,25 @@ class WebGLPointsLayer extends Layer {
     this.hitDetectionDisabled_ = !!options.disableHitDetection;
   }
 
+  /**
+   * @override
+   */
   createRenderer() {
+    const attributes = Object.keys(this.parseResult_.attributes).map(
+      (name) => ({
+        name,
+        ...this.parseResult_.attributes[name],
+      }),
+    );
     return new WebGLPointsLayerRenderer(this, {
       vertexShader: this.parseResult_.builder.getSymbolVertexShader(),
       fragmentShader: this.parseResult_.builder.getSymbolFragmentShader(),
-      hitVertexShader:
-        !this.hitDetectionDisabled_ &&
-        this.parseResult_.builder.getSymbolVertexShader(true),
-      hitFragmentShader:
-        !this.hitDetectionDisabled_ &&
-        this.parseResult_.builder.getSymbolFragmentShader(true),
+      hitDetectionEnabled: !this.hitDetectionDisabled_,
       uniforms: this.parseResult_.uniforms,
-      attributes: this.parseResult_.attributes,
+      attributes:
+        /** @type {Array<import('../renderer/webgl/PointsLayer.js').CustomAttribute>} */ (
+          attributes
+        ),
     });
   }
 

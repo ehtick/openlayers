@@ -1,9 +1,10 @@
-import GeoTIFFSource from '../../../../../src/ol/source/GeoTIFF.js';
 import TileState from '../../../../../src/ol/TileState.js';
+import {get} from '../../../../../src/ol/proj.js';
+import GeoTIFFSource from '../../../../../src/ol/source/GeoTIFF.js';
 
 describe('ol/source/GeoTIFF', function () {
   describe('constructor', function () {
-    it('configures readMethod_ to read rasters', function () {
+    it('sets convertToRGB false by default', function () {
       const source = new GeoTIFFSource({
         sources: [
           {
@@ -11,10 +12,10 @@ describe('ol/source/GeoTIFF', function () {
           },
         ],
       });
-      expect(source.readMethod_).to.be('readRasters');
+      expect(source.convertToRGB_).to.be(false);
     });
 
-    it('configures readMethod_ to read RGB', function () {
+    it('respects the convertToRGB option', function () {
       const source = new GeoTIFFSource({
         convertToRGB: true,
         sources: [
@@ -23,7 +24,19 @@ describe('ol/source/GeoTIFF', function () {
           },
         ],
       });
-      expect(source.readMethod_).to.be('readRGB');
+      expect(source.convertToRGB_).to.be(true);
+    });
+
+    it('accepts auto convertToRGB', function () {
+      const source = new GeoTIFFSource({
+        convertToRGB: 'auto',
+        sources: [
+          {
+            url: 'spec/ol/source/images/0-0-0.tif',
+          },
+        ],
+      });
+      expect(source.convertToRGB_).to.be('auto');
     });
 
     it('defaults to wrapX: false', function () {
@@ -47,6 +60,31 @@ describe('ol/source/GeoTIFF', function () {
         ],
       });
       expect(source.getWrapX()).to.be(true);
+    });
+
+    it('defaults to projection: null', function () {
+      const source = new GeoTIFFSource({
+        sources: [
+          {
+            url: 'spec/ol/source/images/0-0-0.tif',
+          },
+        ],
+      });
+      expect(source.getProjection()).to.be(null);
+    });
+
+    it('allows projection to be set', function () {
+      const projection = 'EPSG:4326';
+      const expected = get(projection);
+      const source = new GeoTIFFSource({
+        projection,
+        sources: [
+          {
+            url: 'spec/ol/source/images/0-0-0.tif',
+          },
+        ],
+      });
+      expect(source.getProjection()).to.be(expected);
     });
 
     it('generates Float32Array data if normalize is set to false', (done) => {
@@ -140,7 +178,8 @@ describe('ol/source/GeoTIFF', function () {
         expect(projection.getUnits()).to.be('degrees');
         expect(viewOptions.extent).to.eql([-180, -90, 180, 90]);
         expect(viewOptions.center).to.eql([0, 0]);
-        expect(viewOptions.resolutions).to.eql([0.703125]);
+        expect(viewOptions.resolutions).to.eql([1.40625, 0.703125, 0.3515625]);
+        expect(viewOptions.showFullExtent).to.be(true);
         done();
       });
     });

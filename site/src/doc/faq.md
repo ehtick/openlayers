@@ -21,7 +21,6 @@ Table of contents:
 * [Why aren't there any features in my source?](#why-aren-t-there-any-features-in-my-source-)
 * [How do I force a re-render of the map?](#how-do-i-force-a-re-render-of-the-map-)
 * [Why are my features not found?](#why-are-my-features-not-found-)
-* [Why is zooming or clicking off, inaccurate?](#user-content-why-is-zooming-or-clicking-off-inaccurate)
 
 ## What projection is OpenLayers using?
 
@@ -54,8 +53,8 @@ The projection of your map can be set through the `view`-property. Here are some
 examples:
 
 ```javascript
-import Map from 'ol/Map';
-import View from 'ol/View';
+import Map from 'ol/Map.js';
+import View from 'ol/View.js';
 
 // OpenLayers comes with support for the World Geodetic System 1984, EPSG:4326:
 const map = new Map({
@@ -68,11 +67,11 @@ const map = new Map({
 ```
 
 ```javascript
-import Map from 'ol/Map';
-import View from 'ol/View';
+import Map from 'ol/Map.js';
+import View from 'ol/View.js';
 import proj4 from 'proj4';
-import {register} from 'ol/proj/proj4';
-import {get as getProjection} from 'ol/proj';
+import {register} from 'ol/proj/proj4.js';
+import {get as getProjection} from 'ol/proj.js';
 
 // To use other projections, you have to register the projection in OpenLayers.
 // This can easily be done with [http://proj4js.org/](proj4)
@@ -113,10 +112,10 @@ coordinates for the center have to be provided in that projection. Chances are
 that your map looks like this:
 
 ```javascript
-import Map from 'ol/Map';
-import View from 'ol/View';
-import TileLayer from 'ol/layer/Tile';
-import OSM from 'ol/source/OSM';
+import Map from 'ol/Map.js';
+import View from 'ol/View.js';
+import TileLayer from 'ol/layer/Tile.js';
+import OSM from 'ol/source/OSM.js';
 
 const washingtonLonLat = [-77.036667, 38.895];
 const map = new Map({
@@ -142,11 +141,11 @@ The solution is easy: Provide the coordinates projected into Web Mercator.
 OpenLayers has some helpful utility methods to assist you:
 
 ```javascript
-import Map from 'ol/Map';
-import View from 'ol/View';
-import TileLayer from 'ol/layer/Tile';
-import OSM from 'ol/source/OSM';
-import {fromLonLat} from 'ol/proj';
+import Map from 'ol/Map.js';
+import View from 'ol/View.js';
+import TileLayer from 'ol/layer/Tile.js';
+import OSM from 'ol/source/OSM.js';
+import {fromLonLat} from 'ol/proj.js';
 
 const washingtonLonLat = [-77.036667, 38.895];
 const washingtonWebMercator = fromLonLat(washingtonLonLat);
@@ -171,7 +170,7 @@ If you told OpenLayers about a custom projection (see above), you can use the
 following method to transform a coordinate from WGS84 to your projection:
 
 ```javascript
-import {transform} from 'ol/proj';
+import {transform} from 'ol/proj.js';
 // assuming that OpenLayers knows about EPSG:21781, see above
 const swissCoord = transform([8.23, 46.86], 'EPSG:4326', 'EPSG:21781');
 ```
@@ -210,11 +209,11 @@ So the next step would be to put the decimal coordinates into an array and use
 it as center:
 
 ```javascript
-import Map from 'ol/Map';
-import View from 'ol/View';
-import TileLayer from 'ol/layer/Tile';
-import OSM from 'ol/source/OSM';
-import {fromLonLat} from 'ol/proj';
+import Map from 'ol/Map.js';
+import View from 'ol/View.js';
+import TileLayer from 'ol/layer/Tile.js';
+import OSM from 'ol/source/OSM.js';
+import {fromLonLat} from 'ol/proj.js';
 
 const schladming = [47.394167, 13.689167]; // caution partner, read on...
 // since we are using OSM, we have to transform the coordinates...
@@ -246,11 +245,11 @@ e.g. try to change the map center.
 Ok, then let's flip the coordinates:
 
 ```javascript
-import Map from 'ol/Map';
-import View from 'ol/View';
-import TileLayer from 'ol/layer/Tile';
-import OSM from 'ol/source/OSM';
-import {fromLonLat} from 'ol/proj';
+import Map from 'ol/Map.js';
+import View from 'ol/View.js';
+import TileLayer from 'ol/layer/Tile.js';
+import OSM from 'ol/source/OSM.js';
+import {fromLonLat} from 'ol/proj.js';
 
 const schladming = [13.689167, 47.394167]; // longitude first, then latitude
 // since we are using OSM, we have to transform the coordinates...
@@ -287,8 +286,8 @@ Suppose you want to load a KML file and display the contained features on the
 map. Code like the following could be used:
 
 ```javascript
-import VectorLayer from 'ol/layer/Vector';
-import KMLSource from 'ol/source/KML';
+import VectorLayer from 'ol/layer/Vector.js';
+import KMLSource from 'ol/source/KML.js';
 
 const vector = new VectorLayer({
   source: new KMLSource({
@@ -302,8 +301,8 @@ You may ask yourself how many features are in that KML, and try something like
 the following:
 
 ```javascript
-import VectorLayer from 'ol/layer/Vector';
-import KMLSource from 'ol/source/KML';
+import VectorLayer from 'ol/layer/Vector.js';
+import KMLSource from 'ol/source/KML.js';
 
 const vector = new VectorLayer({
   source: new KMLSource({
@@ -362,7 +361,7 @@ icons, the actual geometry of a feature might be too far away and is not conside
 In this case, set the `renderBuffer` property of `VectorLayer` (the default value is 100px):
 
 ```javascript
-import VectorLayer from 'ol/layer/Vector';
+import VectorLayer from 'ol/layer/Vector.js';
 
 const vectorLayer = new VectorLayer({
   ...
@@ -371,30 +370,3 @@ const vectorLayer = new VectorLayer({
 ```
 
 The recommended value is the size of the largest symbol, line width or label.
-
-## Why is zooming or clicking in the map off/inaccurate?
-
-OpenLayers does not update the map when the container element is resized. This can be caused by progressive updates
-to CSS styles or manually resizing the map. When that happens, any interaction will become inaccurate: the map would zoom in and out, and end up not being centered on the pointer. This makes it hard to do certain interactions, e.g. selecting the desired feature.
-
-There is currently no built-in way to react to element's size changes, as [Resize Observer API](https://developer.mozilla.org/en-US/docs/Web/API/ResizeObserver) is only implemented in Chrome.
-
-There is however an easy to use [polyfill](https://github.com/que-etc/resize-observer-polyfill):
-
-```javascript
-import Map from 'ol/Map';
-import ResizeObserver from 'resize-observer-polyfill';
-
-const mapElement = document.querySelector('#map')
-const map = new Map({
-  target: mapElement
-})
-
-const sizeObserver = new ResizeObserver(() => {
-  map.updateSize()
-})
-sizeObserver.observe(mapElement)
-
-// called when the map is destroyed
-// sizeObserver.disconnect()
-```

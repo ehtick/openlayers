@@ -2,12 +2,12 @@
  * @module ol/source/WMTS
  */
 
-import TileImage from './TileImage.js';
-import {appendParams} from '../uri.js';
 import {containsExtent} from '../extent.js';
-import {createFromCapabilitiesMatrixSet} from '../tilegrid/WMTS.js';
-import {createFromTileUrlFunctions, expandUrl} from '../tileurlfunction.js';
 import {equivalent, get as getProjection, transformExtent} from '../proj.js';
+import {createFromCapabilitiesMatrixSet} from '../tilegrid/WMTS.js';
+import {createFromTileUrlFunctions} from '../tileurlfunction.js';
+import {appendParams, expandUrl} from '../uri.js';
+import TileImage from './TileImage.js';
 
 /**
  * Request encoding. One of 'KVP', 'REST'.
@@ -18,7 +18,7 @@ import {equivalent, get as getProjection, transformExtent} from '../proj.js';
  * @typedef {Object} Options
  * @property {import("./Source.js").AttributionLike} [attributions] Attributions.
  * @property {boolean} [attributionsCollapsible=true] Attributions are collapsible.
- * @property {number} [cacheSize] Initial tile cache size. Will auto-grow to hold at least the number of tiles in the viewport.
+ * @property {number} [cacheSize] Deprecated.  Use the cacheSize option on the layer instead.
  * @property {null|string} [crossOrigin] The `crossOrigin` attribute for loaded images.  Note that
  * you must provide a `crossOrigin` value if you want to access pixel data with the Canvas renderer.
  * See https://developer.mozilla.org/en-US/docs/Web/HTML/CORS_enabled_image for more detail.
@@ -154,7 +154,7 @@ class WMTS extends TileImage {
 
     if (urls && urls.length > 0) {
       this.tileUrlFunction = createFromTileUrlFunctions(
-        urls.map(this.createFromWMTSTemplate.bind(this))
+        urls.map(this.createFromWMTSTemplate.bind(this)),
       );
     }
   }
@@ -163,15 +163,16 @@ class WMTS extends TileImage {
    * Set the URLs to use for requests.
    * URLs may contain OGC conform URL Template Variables: {TileMatrix}, {TileRow}, {TileCol}.
    * @param {Array<string>} urls URLs.
+   * @override
    */
   setUrls(urls) {
     this.urls = urls;
     const key = urls.join('\n');
     this.setTileUrlFunction(
       createFromTileUrlFunctions(
-        urls.map(this.createFromWMTSTemplate.bind(this))
+        urls.map(this.createFromWMTSTemplate.bind(this)),
       ),
-      key
+      key,
     );
   }
 
@@ -245,10 +246,9 @@ class WMTS extends TileImage {
    * @return {string} The key for the current dimensions.
    */
   getKeyForDimensions_() {
-    let i = 0;
-    const res = [];
+    const res = this.urls ? this.urls.slice(0) : [];
     for (const key in this.dimensions_) {
-      res[i++] = key + '-' + this.dimensions_[key];
+      res.push(key + '-' + this.dimensions_[key]);
     }
     return res.join('/');
   }
@@ -313,23 +313,22 @@ class WMTS extends TileImage {
       function (tileCoord, pixelRatio, projection) {
         if (!tileCoord) {
           return undefined;
-        } else {
-          const localContext = {
-            'TileMatrix': tileGrid.getMatrixId(tileCoord[0]),
-            'TileCol': tileCoord[1],
-            'TileRow': tileCoord[2],
-          };
-          Object.assign(localContext, dimensions);
-          let url = template;
-          if (requestEncoding == 'KVP') {
-            url = appendParams(url, localContext);
-          } else {
-            url = url.replace(/\{(\w+?)\}/g, function (m, p) {
-              return localContext[p];
-            });
-          }
-          return url;
         }
+        const localContext = {
+          'TileMatrix': tileGrid.getMatrixId(tileCoord[0]),
+          'TileCol': tileCoord[1],
+          'TileRow': tileCoord[2],
+        };
+        Object.assign(localContext, dimensions);
+        let url = template;
+        if (requestEncoding == 'KVP') {
+          url = appendParams(url, localContext);
+        } else {
+          url = url.replace(/\{(\w+?)\}/g, function (m, p) {
+            return encodeURIComponent(localContext[p]);
+          });
+        }
+        return url;
       }
     );
   }
@@ -363,7 +362,7 @@ export default WMTS;
  */
 export function optionsFromCapabilities(wmtsCap, config) {
   const layers = wmtsCap['Contents']['Layer'];
-  const l = layers.find(function (elt) {
+  const l = layers?.find(function (elt) {
     return elt['Identifier'] == config['layer'];
   });
   if (!l) {
@@ -382,9 +381,8 @@ export function optionsFromCapabilities(wmtsCap, config) {
         const proj2 = getProjection(config['projection']);
         if (proj1 && proj2) {
           return equivalent(proj1, proj2);
-        } else {
-          return supportedCRS == config['projection'];
         }
+        return supportedCRS == config['projection'];
       });
     } else {
       idx = l['TileMatrixSetLink'].findIndex(function (elt) {
@@ -411,9 +409,8 @@ export function optionsFromCapabilities(wmtsCap, config) {
   idx = l['Style'].findIndex(function (elt) {
     if ('style' in config) {
       return elt['Title'] == config['style'];
-    } else {
-      return elt['isDefault'];
     }
+    return elt['isDefault'];
   });
   if (idx < 0) {
     idx = 0;
@@ -452,7 +449,7 @@ export function optionsFromCapabilities(wmtsCap, config) {
   }
 
   let wrapX = false;
-  const switchXY = projection.getAxisOrientation().substr(0, 2) == 'ne';
+  const switchXY = projection.getAxisOrientation().startsWith('ne');
 
   let matrix = matrixSetObj.TileMatrix[0];
 
@@ -472,7 +469,7 @@ export function optionsFromCapabilities(wmtsCap, config) {
       (tileMatrixValue) =>
         tileMatrixValue.Identifier === selectedMatrixLimit.TileMatrix ||
         matrixSetObj.Identifier + ':' + tileMatrixValue.Identifier ===
-          selectedMatrixLimit.TileMatrix
+          selectedMatrixLimit.TileMatrix,
     );
     if (m) {
       matrix = m;
@@ -518,7 +515,7 @@ export function optionsFromCapabilities(wmtsCap, config) {
       const wgs84MatrixSetExtent = transformExtent(
         matrixSetExtent,
         matrixSetObj['SupportedCRS'],
-        'EPSG:4326'
+        'EPSG:4326',
       );
       // Ignore slight deviation from the correct x limits
       wrapX =
@@ -530,7 +527,7 @@ export function optionsFromCapabilities(wmtsCap, config) {
   const tileGrid = createFromCapabilitiesMatrixSet(
     matrixSetObj,
     extent,
-    matrixLimits
+    matrixLimits,
   );
 
   /** @type {!Array<string>} */

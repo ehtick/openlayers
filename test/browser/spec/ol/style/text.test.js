@@ -16,7 +16,7 @@ describe('ol.style.Text', function () {
       expect(style.getFill().getColor()).to.be('#123456');
     });
 
-    it('can always be resetted to no color', function () {
+    it('can always be reset to no color', function () {
       const style = new Text();
       style.getFill().setColor();
       expect(style.getFill().getColor()).to.be(undefined);
@@ -42,6 +42,7 @@ describe('ol.style.Text', function () {
         text: 'test',
         textAlign: 'center',
         textBaseline: 'top',
+        repeat: 250,
         fill: new Fill({
           color: '#319FD3',
         }),
@@ -65,16 +66,17 @@ describe('ol.style.Text', function () {
       expect(original.getRotation()).to.eql(clone.getRotation());
       expect(original.getText()).to.eql(clone.getText());
       expect(original.getTextAlign()).to.eql(clone.getTextAlign());
+      expect(original.getRepeat()).to.eql(clone.getRepeat());
       expect(original.getTextBaseline()).to.eql(clone.getTextBaseline());
       expect(original.getStroke().getColor()).to.eql(
-        clone.getStroke().getColor()
+        clone.getStroke().getColor(),
       );
       expect(original.getFill().getColor()).to.eql(clone.getFill().getColor());
       expect(original.getBackgroundStroke().getColor()).to.eql(
-        clone.getBackgroundStroke().getColor()
+        clone.getBackgroundStroke().getColor(),
       );
       expect(original.getBackgroundFill().getColor()).to.eql(
-        clone.getBackgroundFill().getColor()
+        clone.getBackgroundFill().getColor(),
       );
       expect(original.getPadding()).to.eql(clone.getPadding());
     });
@@ -95,10 +97,10 @@ describe('ol.style.Text', function () {
       clone.getFill().setColor('#012345');
       clone.getStroke().setColor('#012345');
       expect(original.getFill().getColor()).to.not.eql(
-        clone.getFill().getColor()
+        clone.getFill().getColor(),
       );
       expect(original.getStroke().getColor()).to.not.eql(
-        clone.getStroke().getColor()
+        clone.getStroke().getColor(),
       );
     });
   });

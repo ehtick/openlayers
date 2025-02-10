@@ -1,10 +1,10 @@
 /**
  * @module ol/ImageTile
  */
+import {listenImage} from './Image.js';
 import Tile from './Tile.js';
 import TileState from './TileState.js';
 import {createCanvasContext2D} from './dom.js';
-import {listenImage} from './Image.js';
 
 class ImageTile extends Tile {
   /**
@@ -138,8 +138,8 @@ class ImageTile extends Tile {
    *     .catch(() => tile.setState(3)); // error
    * });
    * ```
-   *
    * @api
+   * @override
    */
   load() {
     if (this.state == TileState.ERROR) {
@@ -156,7 +156,7 @@ class ImageTile extends Tile {
       this.unlisten_ = listenImage(
         this.image_,
         this.handleImageLoad_.bind(this),
-        this.handleImageError_.bind(this)
+        this.handleImageError_.bind(this),
       );
     }
   }
@@ -171,6 +171,15 @@ class ImageTile extends Tile {
       this.unlisten_();
       this.unlisten_ = null;
     }
+  }
+
+  /**
+   * @override
+   */
+  disposeInternal() {
+    this.unlistenImage_();
+    this.image_ = null;
+    super.disposeInternal();
   }
 }
 

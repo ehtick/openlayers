@@ -1,15 +1,16 @@
 /**
  * @module ol/renderer/canvas/VectorImageLayer
  */
-import CanvasImageLayerRenderer from './ImageLayer.js';
-import CanvasVectorLayerRenderer from './VectorLayer.js';
-import EventType from '../../events/EventType.js';
+import RBush from 'rbush';
 import ImageCanvas from '../../ImageCanvas.js';
 import ImageState from '../../ImageState.js';
-import RBush from 'rbush';
 import ViewHint from '../../ViewHint.js';
-import {apply, compose, create} from '../../transform.js';
+import EventType from '../../events/EventType.js';
 import {getHeight, getWidth, isEmpty, scaleFromCenter} from '../../extent.js';
+import {fromResolutionLike} from '../../resolution.js';
+import {apply, compose, create} from '../../transform.js';
+import CanvasImageLayerRenderer from './ImageLayer.js';
+import CanvasVectorLayerRenderer from './VectorLayer.js';
 
 /**
  * @classdesc
@@ -50,6 +51,7 @@ class CanvasVectorImageLayerRenderer extends CanvasImageLayerRenderer {
 
   /**
    * Clean up.
+   * @override
    */
   disposeInternal() {
     this.vectorRenderer_.dispose();
@@ -60,20 +62,22 @@ class CanvasVectorImageLayerRenderer extends CanvasImageLayerRenderer {
    * Asynchronous layer level hit detection.
    * @param {import("../../pixel.js").Pixel} pixel Pixel.
    * @return {Promise<Array<import("../../Feature").default>>} Promise that resolves with an array of features.
+   * @override
    */
   getFeatures(pixel) {
     if (!this.vectorRenderer_) {
-      return new Promise((resolve) => resolve([]));
+      return Promise.resolve([]);
     }
     const vectorPixel = apply(
       this.coordinateToVectorPixelTransform_,
-      apply(this.renderedPixelToCoordinateTransform_, pixel.slice())
+      apply(this.renderedPixelToCoordinateTransform_, pixel.slice()),
     );
     return this.vectorRenderer_.getFeatures(vectorPixel);
   }
 
   /**
    * Perform action necessary to get the layer rendered after new fonts have loaded
+   * @override
    */
   handleFontsChanged() {
     this.vectorRenderer_.handleFontsChanged();
@@ -83,6 +87,7 @@ class CanvasVectorImageLayerRenderer extends CanvasImageLayerRenderer {
    * Determine whether render should be called.
    * @param {import("../../Map.js").FrameState} frameState Frame state.
    * @return {boolean} Layer is ready to be rendered.
+   * @override
    */
   prepareFrame(frameState) {
     const pixelRatio = frameState.pixelRatio;
@@ -107,11 +112,9 @@ class CanvasVectorImageLayerRenderer extends CanvasImageLayerRenderer {
       vectorRenderer.useContainer(null, null);
       const context = vectorRenderer.context;
       const layerState = frameState.layerStatesArray[frameState.layerIndex];
-      context.globalAlpha = layerState.opacity;
       const imageLayerState = Object.assign({}, layerState, {opacity: 1});
       const imageFrameState = /** @type {import("../../Map.js").FrameState} */ (
         Object.assign({}, frameState, {
-          declutterTree: new RBush(9),
           extent: renderedExtent,
           size: [width, height],
           viewState: /** @type {import("../../View.js").State} */ (
@@ -121,8 +124,15 @@ class CanvasVectorImageLayerRenderer extends CanvasImageLayerRenderer {
           ),
           layerStatesArray: [imageLayerState],
           layerIndex: 0,
+          declutter: null,
         })
       );
+      const declutter = this.getLayer().getDeclutter();
+      if (declutter) {
+        imageFrameState.declutter = {
+          [declutter]: new RBush(9),
+        };
+      }
       let emptyImage = true;
       const image = new ImageCanvas(
         renderedExtent,
@@ -137,53 +147,53 @@ class CanvasVectorImageLayerRenderer extends CanvasImageLayerRenderer {
             vectorRenderer.clipping = false;
             if (vectorRenderer.renderFrame(imageFrameState, null)) {
               vectorRenderer.renderDeclutter(imageFrameState);
+              vectorRenderer.renderDeferred(imageFrameState);
               emptyImage = false;
             }
             callback();
           }
-        }
+        },
       );
 
-      image.addEventListener(
-        EventType.CHANGE,
-        function () {
-          if (image.getState() !== ImageState.LOADED) {
-            return;
-          }
-          this.image_ = emptyImage ? null : image;
-          const imageResolution = image.getResolution();
-          const imagePixelRatio = image.getPixelRatio();
-          const renderedResolution =
-            (imageResolution * pixelRatio) / imagePixelRatio;
-          this.renderedResolution = renderedResolution;
-          this.coordinateToVectorPixelTransform_ = compose(
-            this.coordinateToVectorPixelTransform_,
-            width / 2,
-            height / 2,
-            1 / renderedResolution,
-            -1 / renderedResolution,
-            0,
-            -viewState.center[0],
-            -viewState.center[1]
-          );
-        }.bind(this)
-      );
+      image.addEventListener(EventType.CHANGE, () => {
+        if (image.getState() !== ImageState.LOADED) {
+          return;
+        }
+        this.image = emptyImage ? null : image;
+        const imagePixelRatio = image.getPixelRatio();
+        const renderedResolution =
+          (fromResolutionLike(image.getResolution()) * pixelRatio) /
+          imagePixelRatio;
+        this.renderedResolution = renderedResolution;
+        this.coordinateToVectorPixelTransform_ = compose(
+          this.coordinateToVectorPixelTransform_,
+          width / 2,
+          height / 2,
+          1 / renderedResolution,
+          -1 / renderedResolution,
+          0,
+          -viewState.center[0],
+          -viewState.center[1],
+        );
+      });
       image.load();
     }
 
-    if (this.image_) {
+    if (this.image) {
       this.renderedPixelToCoordinateTransform_ =
         frameState.pixelToCoordinateTransform.slice();
     }
 
-    return !!this.image_;
+    return !!this.image;
   }
 
   /**
+   * @override
    */
   preRender() {}
 
   /**
+   * @override
    */
   postRender() {}
 
@@ -199,13 +209,14 @@ class CanvasVectorImageLayerRenderer extends CanvasImageLayerRenderer {
    * @param {Array<import("../Map.js").HitMatch<T>>} matches The hit detected matches with tolerance.
    * @return {T|undefined} Callback result.
    * @template T
+   * @override
    */
   forEachFeatureAtCoordinate(
     coordinate,
     frameState,
     hitTolerance,
     callback,
-    matches
+    matches,
   ) {
     if (this.vectorRenderer_) {
       return this.vectorRenderer_.forEachFeatureAtCoordinate(
@@ -213,17 +224,16 @@ class CanvasVectorImageLayerRenderer extends CanvasImageLayerRenderer {
         frameState,
         hitTolerance,
         callback,
-        matches
-      );
-    } else {
-      return super.forEachFeatureAtCoordinate(
-        coordinate,
-        frameState,
-        hitTolerance,
-        callback,
-        matches
+        matches,
       );
     }
+    return super.forEachFeatureAtCoordinate(
+      coordinate,
+      frameState,
+      hitTolerance,
+      callback,
+      matches,
+    );
   }
 }
 

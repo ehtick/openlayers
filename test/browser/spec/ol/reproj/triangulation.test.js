@@ -1,10 +1,11 @@
-import Triangulation from '../../../../../src/ol/reproj/Triangulation.js';
+import proj4 from 'proj4';
+import {register} from '../../../../../src/ol/proj/proj4.js';
 import {
   addCommon,
   clearAllProjections,
   get as getProjection,
 } from '../../../../../src/ol/proj.js';
-import {register} from '../../../../../src/ol/proj/proj4.js';
+import Triangulation from '../../../../../src/ol/reproj/Triangulation.js';
 
 describe('ol.reproj.Triangulation', function () {
   beforeEach(function () {
@@ -13,7 +14,7 @@ describe('ol.reproj.Triangulation', function () {
       '+proj=tmerc +lat_0=49 +lon_0=-2 ' +
         '+k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy ' +
         '+towgs84=446.448,-125.157,542.06,0.15,0.247,0.842,-20.489 ' +
-        '+units=m +no_defs'
+        '+units=m +no_defs',
     );
     register(proj4);
     const proj27700 = getProjection('EPSG:27700');
@@ -34,7 +35,7 @@ describe('ol.reproj.Triangulation', function () {
         proj4326,
         [20, 20, 30, 30],
         [-180, -90, 180, 90],
-        0
+        0,
       );
       expect(triangulation.getTriangles().length).to.be(2);
     });
@@ -47,7 +48,7 @@ describe('ol.reproj.Triangulation', function () {
         proj4326,
         [0, 0, 10, 10],
         proj27700.getExtent(),
-        0
+        0,
       );
       expect(triangulation.getTriangles().length).to.be(0);
     });
@@ -59,7 +60,7 @@ describe('ol.reproj.Triangulation', function () {
         proj4326,
         [20, 20, 30, 30],
         null,
-        0
+        0,
       );
       expect(triangulation.getTriangles().length).to.be(2);
     });

@@ -1,13 +1,14 @@
+import proj4 from 'proj4';
 import ImageTile from '../../../../../src/ol/ImageTile.js';
-import ReprojTile from '../../../../../src/ol/reproj/Tile.js';
+import {listen} from '../../../../../src/ol/events.js';
+import {register} from '../../../../../src/ol/proj/proj4.js';
 import {
   addCommon,
   clearAllProjections,
   get as getProjection,
 } from '../../../../../src/ol/proj.js';
+import ReprojTile from '../../../../../src/ol/reproj/Tile.js';
 import {createForProjection} from '../../../../../src/ol/tilegrid.js';
-import {listen} from '../../../../../src/ol/events.js';
-import {register} from '../../../../../src/ol/proj/proj4.js';
 
 describe('ol.reproj.Tile', function () {
   beforeEach(function () {
@@ -16,7 +17,7 @@ describe('ol.reproj.Tile', function () {
       '+proj=tmerc +lat_0=49 +lon_0=-2 ' +
         '+k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy ' +
         '+towgs84=446.448,-125.157,542.06,0.15,0.247,0.842,-20.489 ' +
-        '+units=m +no_defs'
+        '+units=m +no_defs',
     );
     register(proj4);
     const proj27700 = getProjection('EPSG:27700');
@@ -50,9 +51,9 @@ describe('ol.reproj.Tile', function () {
           null,
           function (tile, src) {
             tile.getImage().src = src;
-          }
+          },
         );
-      }
+      },
     );
   }
 
@@ -82,7 +83,7 @@ describe('ol.reproj.Tile', function () {
       0,
       function () {
         expect().fail('No tiles should be required');
-      }
+      },
     );
     expect(tile.getState()).to.be(4); // EMPTY
   });
@@ -101,7 +102,7 @@ describe('ol.reproj.Tile', function () {
       0,
       function () {
         expect().fail('No tiles should be required');
-      }
+      },
     );
     expect(tile.getState()).to.be(4); // EMPTY
   });

@@ -1,9 +1,11 @@
 /**
  * @module ol/render/canvas/TextBuilder
  */
-import CanvasBuilder from './Builder.js';
-import CanvasInstruction from './Instruction.js';
 import {asColorLike} from '../../colorlike.js';
+import {intersects} from '../../extent.js';
+import {lineChunk} from '../../geom/flat/linechunk.js';
+import {matchingChunk} from '../../geom/flat/straightchunk.js';
+import {getUid} from '../../util.js';
 import {
   defaultFillStyle,
   defaultFont,
@@ -19,19 +21,16 @@ import {
   defaultTextBaseline,
   registerFont,
 } from '../canvas.js';
-import {getUid} from '../../util.js';
-import {intersects} from '../../extent.js';
-import {matchingChunk} from '../../geom/flat/straightchunk.js';
+import CanvasBuilder from './Builder.js';
+import CanvasInstruction from './Instruction.js';
 /**
  * @const
- * @enum {number}
+ * @type {{left: 0, center: 0.5, right: 1, top: 0, middle: 0.5, hanging: 0.2, alphabetic: 0.8, ideographic: 0.8, bottom: 1}}
  */
 export const TEXT_ALIGN = {
   'left': 0,
-  'end': 0,
   'center': 0.5,
   'right': 1,
-  'start': 1,
   'top': 0,
   'middle': 0.5,
   'hanging': 0.2,
@@ -82,6 +81,12 @@ class CanvasTextBuilder extends CanvasBuilder {
 
     /**
      * @private
+     * @type {boolean|undefined}
+     */
+    this.textKeepUpright_ = undefined;
+
+    /**
+     * @private
      * @type {number}
      */
     this.textRotation_ = 0;
@@ -96,6 +101,7 @@ class CanvasTextBuilder extends CanvasBuilder {
      * @type {!Object<string, import("../canvas.js").FillState>}
      */
     this.fillStates = {};
+    this.fillStates[defaultFillStyle] = {fillStyle: defaultFillStyle};
 
     /**
      * @private
@@ -138,6 +144,12 @@ class CanvasTextBuilder extends CanvasBuilder {
     this.strokeKey_ = '';
 
     /**
+     * @private
+     * @type {import('../../style/Style.js').DeclutterMode}
+     */
+    this.declutterMode_ = undefined;
+
+    /**
      * Data shared with an image builder for combined decluttering.
      * @private
      * @type {import("../canvas.js").DeclutterImageWithText}
@@ -147,6 +159,7 @@ class CanvasTextBuilder extends CanvasBuilder {
 
   /**
    * @return {import("../canvas.js").SerializableInstructions} the serializable instructions.
+   * @override
    */
   finish() {
     const instructions = super.finish();
@@ -159,8 +172,10 @@ class CanvasTextBuilder extends CanvasBuilder {
   /**
    * @param {import("../../geom/SimpleGeometry.js").default|import("../Feature.js").default} geometry Geometry.
    * @param {import("../../Feature.js").FeatureLike} feature Feature.
+   * @param {number} [index] Render order index.
+   * @override
    */
-  drawText(geometry, feature) {
+  drawText(geometry, feature, index) {
     const fillState = this.textFillState_;
     const strokeState = this.textStrokeState_;
     const textState = this.textState_;
@@ -182,7 +197,7 @@ class CanvasTextBuilder extends CanvasBuilder {
         geometryType == 'Polygon' ||
         geometryType == 'MultiPolygon')
     ) {
-      if (!intersects(this.getBufferedMaxExtent(), geometry.getExtent())) {
+      if (!intersects(this.maxExtent, geometry.getExtent())) {
         return;
       }
       let ends;
@@ -207,32 +222,47 @@ class CanvasTextBuilder extends CanvasBuilder {
           ends.push(endss[i][0]);
         }
       }
-      this.beginGeometry(geometry, feature);
-      const textAlign = textState.textAlign;
+      this.beginGeometry(geometry, feature, index);
+      const repeat = textState.repeat;
+      const textAlign = repeat ? undefined : textState.textAlign;
       // No `justify` support for line placement.
       let flatOffset = 0;
-      let flatEnd;
       for (let o = 0, oo = ends.length; o < oo; ++o) {
-        if (textAlign == undefined) {
-          const range = matchingChunk(
-            textState.maxAngle,
+        let chunks;
+        if (repeat) {
+          chunks = lineChunk(
+            repeat * this.resolution,
             flatCoordinates,
             flatOffset,
             ends[o],
-            stride
+            stride,
           );
-          flatOffset = range[0];
-          flatEnd = range[1];
         } else {
-          flatEnd = ends[o];
+          chunks = [flatCoordinates.slice(flatOffset, ends[o])];
         }
-        for (let i = flatOffset; i < flatEnd; i += stride) {
-          coordinates.push(flatCoordinates[i], flatCoordinates[i + 1]);
+        for (let c = 0, cc = chunks.length; c < cc; ++c) {
+          const chunk = chunks[c];
+          let chunkBegin = 0;
+          let chunkEnd = chunk.length;
+          if (textAlign == undefined) {
+            const range = matchingChunk(
+              textState.maxAngle,
+              chunk,
+              0,
+              chunk.length,
+              2,
+            );
+            chunkBegin = range[0];
+            chunkEnd = range[1];
+          }
+          for (let i = chunkBegin; i < chunkEnd; i += stride) {
+            coordinates.push(chunk[i], chunk[i + 1]);
+          }
+          const end = coordinates.length;
+          flatOffset = ends[o];
+          this.drawChars_(begin, end);
+          begin = end;
         }
-        const end = coordinates.length;
-        flatOffset = ends[o];
-        this.drawChars_(begin, end);
-        begin = end;
       }
       this.endGeometry(feature);
     } else {
@@ -315,22 +345,14 @@ class CanvasTextBuilder extends CanvasBuilder {
 
       this.saveTextStates_();
 
-      if (textState.backgroundFill || textState.backgroundStroke) {
-        this.setFillStrokeStyle(
-          textState.backgroundFill,
-          textState.backgroundStroke
-        );
-        if (textState.backgroundFill) {
-          this.updateFillStyle(this.state, this.createFill);
-          this.hitDetectionInstructions.push(this.createFill(this.state));
-        }
-        if (textState.backgroundStroke) {
-          this.updateStrokeStyle(this.state, this.applyStroke);
-          this.hitDetectionInstructions.push(this.createStroke(this.state));
-        }
-      }
+      const backgroundFill = textState.backgroundFill
+        ? this.createFill(this.fillStyleToState(textState.backgroundFill))
+        : null;
+      const backgroundStroke = textState.backgroundStroke
+        ? this.createStroke(this.strokeStyleToState(textState.backgroundStroke))
+        : null;
 
-      this.beginGeometry(geometry, feature);
+      this.beginGeometry(geometry, feature, index);
 
       // adjust padding for negative scale
       let padding = textState.padding;
@@ -372,15 +394,15 @@ class CanvasTextBuilder extends CanvasBuilder {
         this.textRotation_,
         [1, 1],
         NaN,
-        undefined,
+        this.declutterMode_,
         this.declutterImageWithText_,
         padding == defaultPadding
           ? defaultPadding
           : padding.map(function (p) {
               return p * pixelRatio;
             }),
-        !!textState.backgroundFill,
-        !!textState.backgroundStroke,
+        backgroundFill,
+        backgroundStroke,
         this.text_,
         this.textKey_,
         this.strokeKey_,
@@ -390,6 +412,13 @@ class CanvasTextBuilder extends CanvasBuilder {
         geometryWidths,
       ]);
       const scale = 1 / pixelRatio;
+      // Set default fill for hit detection background
+      const hitDetectionBackgroundFill = backgroundFill
+        ? backgroundFill.slice(0)
+        : null;
+      if (hitDetectionBackgroundFill) {
+        hitDetectionBackgroundFill[1] = defaultFillStyle;
+      }
       this.hitDetectionInstructions.push([
         CanvasInstruction.DRAW_IMAGE,
         begin,
@@ -405,15 +434,15 @@ class CanvasTextBuilder extends CanvasBuilder {
         this.textRotation_,
         [scale, scale],
         NaN,
-        undefined,
+        this.declutterMode_,
         this.declutterImageWithText_,
         padding,
-        !!textState.backgroundFill,
-        !!textState.backgroundStroke,
+        hitDetectionBackgroundFill,
+        backgroundStroke,
         this.text_,
         this.textKey_,
         this.strokeKey_,
-        this.fillKey_,
+        this.fillKey_ ? defaultFillStyle : this.fillKey_,
         this.textOffsetX_,
         this.textOffsetY_,
         geometryWidths,
@@ -503,6 +532,8 @@ class CanvasTextBuilder extends CanvasBuilder {
       text,
       textKey,
       1,
+      this.declutterMode_,
+      this.textKeepUpright_,
     ]);
     this.hitDetectionInstructions.push([
       CanvasInstruction.DRAW_CHARS,
@@ -510,21 +541,24 @@ class CanvasTextBuilder extends CanvasBuilder {
       end,
       baseline,
       textState.overflow,
-      fillKey,
+      fillKey ? defaultFillStyle : fillKey,
       textState.maxAngle,
-      1,
+      pixelRatio,
       offsetY,
       strokeKey,
-      strokeWidth,
+      strokeWidth * pixelRatio,
       text,
       textKey,
       1 / pixelRatio,
+      this.declutterMode_,
+      this.textKeepUpright_,
     ]);
   }
 
   /**
    * @param {import("../../style/Text.js").default} textStyle Text style.
    * @param {Object} [sharedData] Shared data.
+   * @override
    */
   setTextStyle(textStyle, sharedData) {
     let textState, fillState, strokeState;
@@ -542,7 +576,7 @@ class CanvasTextBuilder extends CanvasBuilder {
           this.textFillState_ = fillState;
         }
         fillState.fillStyle = asColorLike(
-          textFillStyle.getColor() || defaultFillStyle
+          textFillStyle.getColor() || defaultFillStyle,
         );
       }
 
@@ -570,7 +604,7 @@ class CanvasTextBuilder extends CanvasBuilder {
         strokeState.miterLimit =
           miterLimit === undefined ? defaultMiterLimit : miterLimit;
         strokeState.strokeStyle = asColorLike(
-          textStrokeStyle.getColor() || defaultStrokeStyle
+          textStrokeStyle.getColor() || defaultStrokeStyle,
         );
       }
 
@@ -583,6 +617,7 @@ class CanvasTextBuilder extends CanvasBuilder {
       textState.maxAngle = textStyle.getMaxAngle();
       textState.placement = textStyle.getPlacement();
       textState.textAlign = textStyle.getTextAlign();
+      textState.repeat = textStyle.getRepeat();
       textState.justify = textStyle.getJustify();
       textState.textBaseline =
         textStyle.getTextBaseline() || defaultTextBaseline;
@@ -594,12 +629,15 @@ class CanvasTextBuilder extends CanvasBuilder {
       const textOffsetX = textStyle.getOffsetX();
       const textOffsetY = textStyle.getOffsetY();
       const textRotateWithView = textStyle.getRotateWithView();
+      const textKeepUpright = textStyle.getKeepUpright();
       const textRotation = textStyle.getRotation();
       this.text_ = textStyle.getText() || '';
       this.textOffsetX_ = textOffsetX === undefined ? 0 : textOffsetX;
       this.textOffsetY_ = textOffsetY === undefined ? 0 : textOffsetY;
       this.textRotateWithView_ =
         textRotateWithView === undefined ? false : textRotateWithView;
+      this.textKeepUpright_ =
+        textKeepUpright === undefined ? true : textKeepUpright;
       this.textRotation_ = textRotation === undefined ? 0 : textRotation;
 
       this.strokeKey_ = strokeState
@@ -620,14 +658,17 @@ class CanvasTextBuilder extends CanvasBuilder {
         textState.font +
         textState.scale +
         (textState.textAlign || '?') +
+        (textState.repeat || '?') +
         (textState.justify || '?') +
         (textState.textBaseline || '?');
-      this.fillKey_ = fillState
-        ? typeof fillState.fillStyle == 'string'
-          ? fillState.fillStyle
-          : '|' + getUid(fillState.fillStyle)
-        : '';
+      this.fillKey_ =
+        fillState && fillState.fillStyle
+          ? typeof fillState.fillStyle == 'string'
+            ? fillState.fillStyle
+            : '|' + getUid(fillState.fillStyle)
+          : '';
     }
+    this.declutterMode_ = textStyle.getDeclutterMode();
     this.declutterImageWithText_ = sharedData;
   }
 }

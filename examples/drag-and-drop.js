@@ -1,9 +1,15 @@
-import DragAndDrop from '../src/ol/interaction/DragAndDrop.js';
 import Map from '../src/ol/Map.js';
 import View from '../src/ol/View.js';
-import {GPX, GeoJSON, IGC, KML, TopoJSON} from '../src/ol/format.js';
-import {Tile as TileLayer, Vector as VectorLayer} from '../src/ol/layer.js';
-import {Vector as VectorSource, XYZ} from '../src/ol/source.js';
+import GPX from '../src/ol/format/GPX.js';
+import GeoJSON from '../src/ol/format/GeoJSON.js';
+import IGC from '../src/ol/format/IGC.js';
+import KML from '../src/ol/format/KML.js';
+import TopoJSON from '../src/ol/format/TopoJSON.js';
+import DragAndDrop from '../src/ol/interaction/DragAndDrop.js';
+import TileLayer from '../src/ol/layer/Tile.js';
+import VectorLayer from '../src/ol/layer/Vector.js';
+import ImageTile from '../src/ol/source/ImageTile.js';
+import VectorSource from '../src/ol/source/Vector.js';
 
 const key = 'get_your_own_D6rA4zTHduk6KOKTXzGB';
 const attributions =
@@ -13,10 +19,11 @@ const attributions =
 const map = new Map({
   layers: [
     new TileLayer({
-      source: new XYZ({
+      source: new ImageTile({
         attributions: attributions,
         url:
-          'https://api.maptiler.com/tiles/satellite/{z}/{x}/{y}.jpg?key=' + key,
+          'https://api.maptiler.com/maps/satellite/{z}/{x}/{y}.jpg?key=' + key,
+        tileSize: 512,
         maxZoom: 20,
       }),
     }),
@@ -52,7 +59,7 @@ function setInteraction() {
     map.addLayer(
       new VectorLayer({
         source: vectorSource,
-      })
+      }),
     );
     map.getView().fit(vectorSource.getExtent());
   });
@@ -83,8 +90,7 @@ map.on('pointermove', function (evt) {
   if (evt.dragging) {
     return;
   }
-  const pixel = map.getEventPixel(evt.originalEvent);
-  displayFeatureInfo(pixel);
+  displayFeatureInfo(evt.pixel);
 });
 
 map.on('click', function (evt) {

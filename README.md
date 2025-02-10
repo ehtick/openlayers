@@ -23,7 +23,7 @@ new Map({
   layers: [
     new TileLayer({
       source: new XYZ({
-        url: 'https://{a-c}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+        url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
       })
     })
   ],
@@ -40,6 +40,8 @@ See the following examples for more detail on bundling OpenLayers with your appl
  * Using [Rollup](https://github.com/openlayers/ol-rollup)
  * Using [webpack](https://github.com/openlayers/ol-webpack)
  * Using [Parcel](https://github.com/openlayers/ol-parcel)
+
+For more detail on quick prototyping without the use of a Node.js based setup, see the [Skypack](https://github.com/openlayers/ol-skypack) example.
 
 ## Sponsors
 
@@ -63,18 +65,26 @@ OpenLayers appreciates contributions of all kinds.  We especially want to thank 
 
 <br>
 
-[![GeoSolutions logo](./sponsor-logos/geosolutions.png)](https://www.geosolutionsgroup.com/)
-
-> Your one-stop-shop for geospatial open source software.
-> https://www.geosolutionsgroup.com/
-
-<br>
-
 [![ela-compil logo](./sponsor-logos/ela-compil.png)](https://ela.pl/)
 
 > We develop leading Physical Security Information Management (PSIM) software.
 > OpenLayers is the core of our map engine and we love it! 
-> https://elacompil.recruitee.com/
+> https://ela.pl/
+
+<br>
+
+[![Ubigu Oy logo](./sponsor-logos/ubigu-oy.svg)](https://www.ubigu.fi/)
+
+> We advance holistic utilization and availability of spatial information,
+> for a better planned, built and managed society.
+> https://www.ubigu.fi/
+
+<br>
+
+[![Scribble Maps logo](./sponsor-logos/scribble-maps.png)](https://www.scribblemaps.com/)
+
+> Build custom maps and identify insights across real estate, engineering, research, business, exploration, construction, manufacturing - and so much more.
+> https://www.scribblemaps.com/
 
 <br>
 
@@ -86,7 +96,7 @@ The [ol package](https://npmjs.com/package/ol) includes auto-generated TypeScrip
 
 ## Supported Browsers
 
-OpenLayers runs on all modern browsers (with greater than 1% global usage).  This includes Chrome, Firefox, Safari and Edge. For older browsers, [polyfills](https://polyfill.io/) will likely need to be added.
+OpenLayers runs on all modern browsers (with greater than 1% global usage).  This includes Chrome, Firefox, Safari and Edge. For older browsers, polyfills ([Fastly](https://polyfill-fastly.io) or [Cloudflare](https://cdnjs.cloudflare.com/polyfill)) will likely need to be added.
 
 ## Documentation
 

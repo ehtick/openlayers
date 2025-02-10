@@ -1,11 +1,11 @@
 import Feature from '../../../../src/ol/Feature.js';
-import LineString from '../../../../src/ol/geom/LineString.js';
 import Map from '../../../../src/ol/Map.js';
-import Stroke from '../../../../src/ol/style/Stroke.js';
-import Style from '../../../../src/ol/style/Style.js';
+import View from '../../../../src/ol/View.js';
+import LineString from '../../../../src/ol/geom/LineString.js';
 import VectorLayer from '../../../../src/ol/layer/Vector.js';
 import VectorSource from '../../../../src/ol/source/Vector.js';
-import View from '../../../../src/ol/View.js';
+import Stroke from '../../../../src/ol/style/Stroke.js';
+import Style from '../../../../src/ol/style/Style.js';
 
 const vectorSourceRed = new VectorSource();
 const vectorSourceBlue = new VectorSource();
@@ -20,7 +20,7 @@ feature = new Feature({
 feature.setStyle(
   new Style({
     stroke: new Stroke({color: '#f00', width: 10}),
-  })
+  }),
 );
 vectorSourceRed.addFeature(feature);
 
@@ -33,7 +33,7 @@ feature = new Feature({
 feature.setStyle(
   new Style({
     stroke: new Stroke({color: '#00f', width: 16}),
-  })
+  }),
 );
 vectorSourceBlue.addFeature(feature);
 

@@ -1,12 +1,12 @@
-import ImageLayer from '../../../../src/ol/layer/Image.js';
 import Map from '../../../../src/ol/Map.js';
-import Static from '../../../../src/ol/source/ImageStatic.js';
 import View from '../../../../src/ol/View.js';
+import ImageLayer from '../../../../src/ol/layer/Image.js';
 import {
   get as getProjection,
   transformExtent,
   useGeographic,
 } from '../../../../src/ol/proj.js';
+import Static from '../../../../src/ol/source/ImageStatic.js';
 
 useGeographic();
 
@@ -23,7 +23,7 @@ new Map({
         imageExtent: transformExtent(
           [-123, 37, -122, 38],
           'EPSG:4326',
-          'EPSG:3857'
+          'EPSG:3857',
         ),
         projection: getProjection('EPSG:3857'),
       }),

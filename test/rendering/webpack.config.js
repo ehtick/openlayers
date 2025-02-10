@@ -10,7 +10,7 @@ const caseDirs = fs.readdirSync(cases).filter((name) => {
   let exists = true;
   try {
     fs.accessSync(path.join(cases, name, 'main.js'));
-  } catch (err) {
+  } catch {
     exists = false;
   }
   return exists;
@@ -34,7 +34,7 @@ export default {
         use: {
           loader: path.join(
             baseDir,
-            '../../examples/webpack/worker-loader.cjs'
+            '../../examples/webpack/worker-loader.cjs',
           ),
         },
         include: [path.join(baseDir, '../../src/ol/worker')],

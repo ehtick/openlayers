@@ -1,12 +1,12 @@
 /**
  * @module ol/control/Attribution
  */
-import Control from './Control.js';
-import EventType from '../events/EventType.js';
-import {CLASS_COLLAPSED, CLASS_CONTROL, CLASS_UNSELECTABLE} from '../css.js';
 import {equals} from '../array.js';
-import {inView} from '../layer/Layer.js';
+import {CLASS_COLLAPSED, CLASS_CONTROL, CLASS_UNSELECTABLE} from '../css.js';
 import {removeChildren, replaceNode} from '../dom.js';
+import EventType from '../events/EventType.js';
+import {toPromise} from '../functions.js';
+import Control from './Control.js';
 
 /**
  * @typedef {Object} Options
@@ -33,6 +33,8 @@ import {removeChildren, replaceNode} from '../dom.js';
  * @property {function(import("../MapEvent.js").default):void} [render] Function called when
  * the control should be re-rendered. This is called in a `requestAnimationFrame`
  * callback.
+ * @property {string|Array<string>|undefined} [attributions] Optional attribution(s) that will always be
+ * displayed regardless of the layers rendered
  */
 
 /**
@@ -92,6 +94,12 @@ class Attribution extends Control {
     if (!this.collapsible_) {
       this.collapsed_ = false;
     }
+
+    /**
+     * @private
+     * @type {string | Array<string> | undefined}
+     */
+    this.attributions_ = options.attributions;
 
     const className =
       options.className !== undefined ? options.className : 'ol-attribution';
@@ -154,7 +162,7 @@ class Attribution extends Control {
     this.toggleButton_.addEventListener(
       EventType.CLICK,
       this.handleClick_.bind(this),
-      false
+      false,
     );
 
     const cssClasses =
@@ -191,71 +199,30 @@ class Attribution extends Control {
    * @private
    */
   collectSourceAttributions_(frameState) {
-    /**
-     * Used to determine if an attribution already exists.
-     * @type {!Object<string, boolean>}
-     */
-    const lookup = {};
-
-    /**
-     * A list of visible attributions.
-     * @type {Array<string>}
-     */
-    const visibleAttributions = [];
-
-    let collapsible = true;
-    const layerStatesArray = frameState.layerStatesArray;
-    for (let i = 0, ii = layerStatesArray.length; i < ii; ++i) {
-      const layerState = layerStatesArray[i];
-      if (!inView(layerState, frameState.viewState)) {
-        continue;
-      }
-
-      const source = /** @type {import("../layer/Layer.js").default} */ (
-        layerState.layer
-      ).getSource();
-      if (!source) {
-        continue;
-      }
-
-      const attributionGetter = source.getAttributions();
-      if (!attributionGetter) {
-        continue;
-      }
-
-      const attributions = attributionGetter(frameState);
-      if (!attributions) {
-        continue;
-      }
-
-      collapsible =
-        collapsible && source.getAttributionsCollapsible() !== false;
-
-      if (Array.isArray(attributions)) {
-        for (let j = 0, jj = attributions.length; j < jj; ++j) {
-          if (!(attributions[j] in lookup)) {
-            visibleAttributions.push(attributions[j]);
-            lookup[attributions[j]] = true;
-          }
-        }
-      } else {
-        if (!(attributions in lookup)) {
-          visibleAttributions.push(attributions);
-          lookup[attributions] = true;
-        }
-      }
+    const layers = this.getMap().getAllLayers();
+    const visibleAttributions = new Set(
+      layers.flatMap((layer) => layer.getAttributions(frameState)),
+    );
+    if (this.attributions_ !== undefined) {
+      Array.isArray(this.attributions_)
+        ? this.attributions_.forEach((item) => visibleAttributions.add(item))
+        : visibleAttributions.add(this.attributions_);
     }
+
     if (!this.overrideCollapsible_) {
+      const collapsible = !layers.some(
+        (layer) => layer.getSource()?.getAttributionsCollapsible() === false,
+      );
       this.setCollapsible(collapsible);
     }
-    return visibleAttributions;
+    return Array.from(visibleAttributions);
   }
 
   /**
    * @private
    * @param {?import("../Map.js").FrameState} frameState Frame state.
    */
-  updateElement_(frameState) {
+  async updateElement_(frameState) {
     if (!frameState) {
       if (this.renderedVisible_) {
         this.element.style.display = 'none';
@@ -264,7 +231,11 @@ class Attribution extends Control {
       return;
     }
 
-    const attributions = this.collectSourceAttributions_(frameState);
+    const attributions = await Promise.all(
+      this.collectSourceAttributions_(frameState).map((attribution) =>
+        toPromise(() => attribution),
+      ),
+    );
 
     const visible = attributions.length > 0;
     if (this.renderedVisible_ != visible) {

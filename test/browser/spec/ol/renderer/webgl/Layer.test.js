@@ -1,11 +1,11 @@
-import DataTileSource from '../../../../../../src/ol/source/DataTile.js';
-import Layer from '../../../../../../src/ol/layer/Layer.js';
 import Map from '../../../../../../src/ol/Map.js';
-import TileLayer from '../../../../../../src/ol/layer/WebGLTile.js';
-import VectorLayer from '../../../../../../src/ol/layer/Vector.js';
-import VectorSource from '../../../../../../src/ol/source/Vector.js';
 import View from '../../../../../../src/ol/View.js';
+import Layer from '../../../../../../src/ol/layer/Layer.js';
+import VectorLayer from '../../../../../../src/ol/layer/Vector.js';
+import TileLayer from '../../../../../../src/ol/layer/WebGLTile.js';
 import WebGLLayerRenderer from '../../../../../../src/ol/renderer/webgl/Layer.js';
+import DataTileSource from '../../../../../../src/ol/source/DataTile.js';
+import VectorSource from '../../../../../../src/ol/source/Vector.js';
 import {getUid} from '../../../../../../src/ol/util.js';
 
 describe('ol/renderer/webgl/Layer', function () {
@@ -20,7 +20,7 @@ describe('ol/renderer/webgl/Layer', function () {
     });
 
     afterEach(function () {
-      document.body.removeChild(target);
+      target.remove();
     });
 
     it('creates a new instance', function () {
@@ -40,15 +40,17 @@ describe('ol/renderer/webgl/Layer', function () {
     });
 
     afterEach(() => {
-      document.body.removeChild(target);
+      target.remove();
     });
 
     function getWebGLLayer(className) {
+      const tileSize = 256;
       return new TileLayer({
         className: className,
         source: new DataTileSource({
+          tileSize: tileSize,
           loader(z, x, y) {
-            return new ImageData(256, 256);
+            return new ImageData(tileSize, tileSize).data;
           },
         }),
       });
@@ -66,8 +68,8 @@ describe('ol/renderer/webgl/Layer', function () {
     }
 
     function dispose(map) {
-      map.setLayers([]);
-      map.setTarget(null);
+      disposeMap(map);
+      map.getAllLayers().forEach((l) => l.dispose());
     }
 
     it('allows sequences of WebGL layers to share a canvas', () => {

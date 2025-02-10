@@ -1,8 +1,8 @@
-import Link from '../src/ol/interaction/Link.js';
 import Map from '../src/ol/Map.js';
-import OSM from '../src/ol/source/OSM.js';
-import TileLayer from '../src/ol/layer/Tile.js';
 import View from '../src/ol/View.js';
+import Link from '../src/ol/interaction/Link.js';
+import TileLayer from '../src/ol/layer/Tile.js';
+import OSM from '../src/ol/source/OSM.js';
 
 const map = new Map({
   layers: [
@@ -17,4 +17,22 @@ const map = new Map({
   }),
 });
 
-map.addInteraction(new Link());
+const link = new Link();
+
+const exampleCheckbox = document.getElementById('example-checkbox');
+exampleCheckbox.addEventListener('change', function () {
+  if (exampleCheckbox.checked) {
+    link.update('example', 'checked');
+  } else {
+    // updating to null will remove the param from the URL
+    link.update('example', null);
+  }
+});
+
+const initialValue = link.track('example', (newValue) => {
+  exampleCheckbox.checked = newValue === 'checked';
+});
+
+exampleCheckbox.checked = initialValue === 'checked';
+
+map.addInteraction(link);
