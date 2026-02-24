@@ -136,6 +136,52 @@ describe('ol/source/GeoTIFF', function () {
           });
         });
     });
+
+    it('loads from a custom client', (done) => {
+      const fetchUrl = 'spec/ol/source/images/0-0-0.tif';
+      let called = false;
+      const source = new GeoTIFFSource({
+        sources: [
+          {
+            url: (headers, abortSignal) => {
+              called = true;
+              return fetch(fetchUrl, {headers, signal: abortSignal});
+            },
+          },
+        ],
+      });
+      source.on('change', () => {
+        if (source.getState() !== 'ready') {
+          return;
+        }
+        expect(called).to.be(true);
+        done();
+      });
+    });
+
+    it('errors when overviews are configured with a custom client', (done) => {
+      const source = new GeoTIFFSource({
+        sources: [
+          {
+            url: () =>
+              Promise.reject(
+                new Error('should not use custom client with overviews'),
+              ),
+            overviews: ['spec/ol/source/images/0-0-0.tif'],
+          },
+        ],
+      });
+      source.on('change', () => {
+        if (source.getState() !== 'error') {
+          return;
+        }
+        expect(source.getError()).to.be.an(Error);
+        expect(source.getError().message).to.be(
+          'Source overviews are not supported when using a custom client',
+        );
+        done();
+      });
+    });
   });
 
   describe('loading', function () {

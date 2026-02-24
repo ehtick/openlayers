@@ -4,6 +4,7 @@
 import {
   Pool,
   fromBlob as tiffFromBlob,
+  fromCustomClient as tiffFromCustomClient,
   fromUrl as tiffFromUrl,
   fromUrls as tiffFromUrls,
   globals as geotiffGlobals,
@@ -68,8 +69,10 @@ function readRGB(preference, image) {
 
 /**
  * @typedef {Object} SourceInfo
- * @property {string} [url] URL for the source GeoTIFF.
- * @property {Array<string>} [overviews] List of any overview URLs, only applies if the url parameter is given.
+ * @property {string|function(HeadersInit, AbortSignal): Promise<Response>} [url] URL for the source GeoTIFF,
+ * or a custom fetch function. When providing a function, it will be called with request headers and an abort signal,
+ * and is expected to resolve with a `Response`.
+ * @property {Array<string>} [overviews] List of any overview URLs, only applies if the url parameter is a string.
  * @property {Blob} [blob] Blob containing the source GeoTIFF. `blob` and `url` are mutually exclusive.
  * @property {number} [min=0] The minimum source data value.  Rendered values are scaled from 0 to 1 based on
  * the configured min and max.  If not provided and raster statistics are available, those will be used instead.
@@ -238,6 +241,46 @@ function getImagesForTIFF(tiff) {
 }
 
 /**
+ * @param {Response} response A fetch response.
+ * @return {Object} A response object compatible with geotiff.js custom clients.
+ */
+function createGeotiffResponse(response) {
+  return {
+    get ok() {
+      return response.ok;
+    },
+    get status() {
+      return response.status;
+    },
+    getHeader(name) {
+      return response.headers.get(name);
+    },
+    getData() {
+      return response.arrayBuffer();
+    },
+  };
+}
+
+/**
+ * @param {function(HeadersInit, AbortSignal): Promise<Response>} client A custom fetch client.
+ * @return {Object} A client object compatible with geotiff.js custom clients.
+ */
+function createGeotiffClient(client) {
+  return {
+    /**
+     * @param {Object} [options] Request options.
+     * @param {HeadersInit} [options.headers] Request headers.
+     * @param {AbortSignal} [options.signal] Abort signal.
+     * @return {Promise<Object>} Response.
+     */
+    async request({headers, signal} = {}) {
+      const response = await client(headers || {}, signal);
+      return createGeotiffResponse(response);
+    },
+  };
+}
+
+/**
  * @param {SourceInfo} source The GeoTIFF source.
  * @param {import('geotiff').RemoteSourceOptions} options Options for the GeoTIFF source.
  * @return {Promise<Array<GeoTIFFImage>>} Resolves to a list of images.
@@ -246,6 +289,15 @@ function getImagesForSource(source, options) {
   let request;
   if (source.blob) {
     request = tiffFromBlob(source.blob);
+  } else if (typeof source.url === 'function') {
+    if (source.overviews) {
+      return Promise.reject(
+        new Error(
+          'Source overviews are not supported when using a custom client',
+        ),
+      );
+    }
+    request = tiffFromCustomClient(createGeotiffClient(source.url), options);
   } else if (source.overviews) {
     request = tiffFromUrls(source.url, source.overviews, options);
   } else {
@@ -473,7 +525,13 @@ class GeoTIFFSource extends DataTile {
      */
     this.convertToRGB_ = options.convertToRGB || false;
 
-    this.setKey(this.sourceInfo_.map((source) => source.url).join(','));
+    this.setKey(
+      this.sourceInfo_
+        .map((source) =>
+          typeof source.url === 'string' ? source.url : 'custom',
+        )
+        .join(','),
+    );
 
     const self = this;
     const requests = new Array(numSources);
