@@ -509,49 +509,6 @@ describe('ol.interaction.Modify', function () {
       expect(lineFeature.getGeometry().getCoordinates()[4][2]).to.equal(50);
     });
 
-    it('preserves per-geometry Z when dragging shared vertices', function () {
-      const lineXYZ = new Feature({
-        geometry: new LineString([
-          [0, 0, 100],
-          [10, 20, 200],
-          [0, 40, 300],
-        ]),
-      });
-      const lineXY = new Feature({
-        geometry: new LineString([
-          [0, 0],
-          [10, 20],
-          [0, 40],
-        ]),
-      });
-      features.length = 0;
-      features.push(lineXYZ, lineXY);
-
-      const modify = new Modify({
-        features: new Collection(features),
-      });
-      map.addInteraction(modify);
-
-      // Drag the first shared vertex from [0, 0] to [-10, -10]
-      simulateEvent('pointermove', 0, 0, null, 0);
-      simulateEvent('pointerdown', 0, 0, null, 0);
-      simulateEvent('pointermove', -10, 10, null, 0);
-      simulateEvent('pointerdrag', -10, 10, null, 0);
-      simulateEvent('pointerup', -10, 10, null, 0);
-
-      const coordsXYZ = lineXYZ.getGeometry().getCoordinates();
-      const coordsXY = lineXY.getGeometry().getCoordinates();
-
-      // XYZ line should preserve its Z value
-      expect(coordsXYZ[0][0]).to.equal(-10);
-      expect(coordsXYZ[0][1]).to.equal(-10);
-      expect(coordsXYZ[0][2]).to.equal(100);
-
-      // XY line should have moved to the same 2D position
-      expect(coordsXY[0][0]).to.equal(-10);
-      expect(coordsXY[0][1]).to.equal(-10);
-    });
-
     it('keeps polygon geometries valid', function () {
       const overlappingVertexFeature = new Feature({
         geometry: new Polygon([

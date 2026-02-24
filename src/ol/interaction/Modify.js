@@ -1456,9 +1456,11 @@ class Modify extends PointerInteraction {
     const geometry = segmentData.geometry;
     const index = dragSegment[1];
 
-    for (let i = 2; i < geometry.getStride(); ++i) {
+    const stride = geometry.getStride();
+    for (let i = 2; i < stride; ++i) {
       vertex[i] = segment[index][i];
     }
+    vertex.length = stride;
     switch (geometry.getType()) {
       case 'Point':
         coordinates = vertex;
