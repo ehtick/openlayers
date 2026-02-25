@@ -2,6 +2,8 @@
  * @module ol/source/GeoTIFF
  */
 import {
+  BaseClient,
+  BaseResponse,
   Pool,
   fromBlob as tiffFromBlob,
   fromCustomClient as tiffFromCustomClient,
@@ -69,10 +71,10 @@ function readRGB(preference, image) {
 
 /**
  * @typedef {Object} SourceInfo
- * @property {string|function(HeadersInit, AbortSignal): Promise<Response>} [url] URL for the source GeoTIFF,
- * or a custom fetch function. When providing a function, it will be called with request headers and an abort signal,
- * and is expected to resolve with a `Response`.
- * @property {Array<string>} [overviews] List of any overview URLs, only applies if the url parameter is a string.
+ * @property {string} [url] URL for the source GeoTIFF.
+ * @property {function(string, HeadersInit, AbortSignal): Promise<Response>} [loader] Custom loader function for URL based sources.
+ * Called with the URL, request headers, and an abort signal. Expected to resolve with a `Response`.
+ * @property {Array<string>} [overviews] List of any overview URLs, only applies if the url parameter is given and no loader is specified.
  * @property {Blob} [blob] Blob containing the source GeoTIFF. `blob` and `url` are mutually exclusive.
  * @property {number} [min=0] The minimum source data value.  Rendered values are scaled from 0 to 1 based on
  * the configured min and max.  If not provided and raster statistics are available, those will be used instead.
@@ -241,43 +243,73 @@ function getImagesForTIFF(tiff) {
 }
 
 /**
- * @param {Response} response A fetch response.
- * @return {Object} A response object compatible with geotiff.js custom clients.
+ * Adapter to convert a fetch Response to geotiff.js BaseResponse.
  */
-function createGeotiffResponse(response) {
-  return {
-    get ok() {
-      return response.ok;
-    },
-    get status() {
-      return response.status;
-    },
-    getHeader(name) {
-      return response.headers.get(name);
-    },
-    getData() {
-      return response.arrayBuffer();
-    },
-  };
+class FetchResponseAdapter extends BaseResponse {
+  /**
+   * @param {Response} response The fetch response.
+   */
+  constructor(response) {
+    super();
+    this.response = response;
+  }
+
+  /**
+   * @override
+   */
+  get ok() {
+    return this.response.ok;
+  }
+
+  /**
+   * @override
+   */
+  get status() {
+    return this.response.status;
+  }
+
+  /**
+   * @override
+   * @param {string} name Header name.
+   * @return {string|null} Header value.
+   */
+  getHeader(name) {
+    return this.response.headers.get(name);
+  }
+
+  /**
+   * @override
+   * @return {Promise<ArrayBuffer>} Response data.
+   */
+  getData() {
+    return this.response.arrayBuffer();
+  }
 }
 
 /**
- * @param {function(HeadersInit, AbortSignal): Promise<Response>} client A custom fetch client.
- * @return {Object} A client object compatible with geotiff.js custom clients.
+ * Adapter to use a custom loader function with geotiff.js.
  */
-function createGeotiffClient(client) {
-  return {
-    /**
-     * @param {Object} [options] Request options.
-     * @param {HeadersInit} [options.headers] Request headers.
-     * @param {AbortSignal} [options.signal] Abort signal.
-     * @return {Promise<Object>} Response.
-     */
-    async request({headers, signal} = {}) {
-      const response = await client(headers || {}, signal);
-      return createGeotiffResponse(response);
-    },
-  };
+class CustomLoaderClient extends BaseClient {
+  /**
+   * @param {string} url The URL.
+   * @param {function(string, HeadersInit, AbortSignal): Promise<Response>} loader The loader function.
+   */
+  constructor(url, loader) {
+    super(url);
+    this.loader = loader;
+  }
+
+  /**
+   * @override
+   * @param {Object} [options] Request options.
+   * @param {HeadersInit} [options.headers] Request headers.
+   * @param {AbortSignal} [options.signal] Abort signal.
+   * @return {Promise<BaseResponse>} Response.
+   */
+  async request({headers, signal} = {}) {
+    const response = await this.loader(this.url, headers || {}, signal);
+    return new FetchResponseAdapter(response);
+  }
 }
 
 /**
@@ -289,15 +321,16 @@ function getImagesForSource(source, options) {
   let request;
   if (source.blob) {
     request = tiffFromBlob(source.blob);
-  } else if (typeof source.url === 'function') {
+  } else if (source.loader) {
     if (source.overviews) {
       return Promise.reject(
         new Error(
-          'Source overviews are not supported when using a custom client',
+          'Source overviews are not supported when using a custom loader',
         ),
       );
     }
-    request = tiffFromCustomClient(createGeotiffClient(source.url), options);
+    const client = new CustomLoaderClient(source.url, source.loader);
+    request = tiffFromCustomClient(client, options);
   } else if (source.overviews) {
     request = tiffFromUrls(source.url, source.overviews, options);
   } else {
@@ -525,13 +558,7 @@ class GeoTIFFSource extends DataTile {
      */
     this.convertToRGB_ = options.convertToRGB || false;
 
-    this.setKey(
-      this.sourceInfo_
-        .map((source) =>
-          typeof source.url === 'string' ? source.url : 'custom',
-        )
-        .join(','),
-    );
+    this.setKey(this.sourceInfo_.map((source) => source.url).join(','));
 
     const self = this;
     const requests = new Array(numSources);

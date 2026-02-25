@@ -13,9 +13,10 @@ const dataUrl =
 const source = new GeoTIFF({
   sources: [
     {
-      // Use a custom client function instead of a plain URL string.
-      // The function receives headers and an abort signal, and must return a Response.
-      url: (headers, abortSignal) => {
+      url: dataUrl,
+      // Use a custom loader function to control how the data is fetched.
+      // The function receives the URL, request headers, and an abort signal.
+      loader: (url, headers, abortSignal) => {
         // Add custom headers (e.g., authentication tokens)
         const customHeaders = {
           ...headers,
@@ -24,7 +25,7 @@ const source = new GeoTIFF({
 
         // Optionally add custom logic (logging, retry logic, caching, etc.)
 
-        return fetch(dataUrl, {
+        return fetch(url, {
           headers: customHeaders,
           signal: abortSignal,
         });

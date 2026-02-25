@@ -137,15 +137,16 @@ describe('ol/source/GeoTIFF', function () {
         });
     });
 
-    it('loads from a custom client', (done) => {
+    it('loads from a custom loader', (done) => {
       const fetchUrl = 'spec/ol/source/images/0-0-0.tif';
       let called = false;
       const source = new GeoTIFFSource({
         sources: [
           {
-            url: (headers, abortSignal) => {
+            url: fetchUrl,
+            loader: (url, headers, abortSignal) => {
               called = true;
-              return fetch(fetchUrl, {headers, signal: abortSignal});
+              return fetch(url, {headers, signal: abortSignal});
             },
           },
         ],
@@ -159,13 +160,14 @@ describe('ol/source/GeoTIFF', function () {
       });
     });
 
-    it('errors when overviews are configured with a custom client', (done) => {
+    it('errors when overviews are configured with a custom loader', (done) => {
       const source = new GeoTIFFSource({
         sources: [
           {
-            url: () =>
+            url: 'spec/ol/source/images/0-0-0.tif',
+            loader: () =>
               Promise.reject(
-                new Error('should not use custom client with overviews'),
+                new Error('should not use custom loader with overviews'),
               ),
             overviews: ['spec/ol/source/images/0-0-0.tif'],
           },
@@ -177,7 +179,7 @@ describe('ol/source/GeoTIFF', function () {
         }
         expect(source.getError()).to.be.an(Error);
         expect(source.getError().message).to.be(
-          'Source overviews are not supported when using a custom client',
+          'Source overviews are not supported when using a custom loader',
         );
         done();
       });
