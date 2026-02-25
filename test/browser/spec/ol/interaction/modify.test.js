@@ -509,7 +509,6 @@ describe('ol.interaction.Modify', function () {
       expect(lineFeature.getGeometry().getCoordinates()[4][2]).to.equal(50);
     });
 
-
     it('preserves different Z values across geometries at shared vertex with sharedVerticesEqual', function () {
       const lineZ1 = new Feature({
         geometry: new LineString([
