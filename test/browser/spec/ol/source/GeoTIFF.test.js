@@ -160,29 +160,23 @@ describe('ol/source/GeoTIFF', function () {
       });
     });
 
-    it('errors when overviews are configured with a custom loader', (done) => {
-      const source = new GeoTIFFSource({
-        sources: [
-          {
-            url: 'spec/ol/source/images/0-0-0.tif',
-            loader: () =>
-              Promise.reject(
-                new Error('should not use custom loader with overviews'),
-              ),
-            overviews: ['spec/ol/source/images/0-0-0.tif'],
-          },
-        ],
-      });
-      source.on('change', () => {
-        if (source.getState() !== 'error') {
-          return;
-        }
-        expect(source.getError()).to.be.an(Error);
-        expect(source.getError().message).to.be(
+    it('errors when overviews are configured with a custom loader', () => {
+      expect(
+        () =>
+          new GeoTIFFSource({
+            sources: [
+              {
+                url: 'spec/ol/source/images/0-0-0.tif',
+                loader: () => Promise.reject(),
+                overviews: ['spec/ol/source/images/0-0-0.tif'],
+              },
+            ],
+          }),
+      ).to.throwError((error) =>
+        expect(error.message).to.be(
           'Source overviews are not supported when using a custom loader',
-        );
-        done();
-      });
+        ),
+      );
     });
   });
 

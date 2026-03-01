@@ -2,8 +2,6 @@
  * @module ol/source/GeoTIFF
  */
 import {
-  BaseClient,
-  BaseResponse,
   Pool,
   fromBlob as tiffFromBlob,
   fromCustomClient as tiffFromCustomClient,
@@ -243,74 +241,23 @@ function getImagesForTIFF(tiff) {
 }
 
 /**
- * Adapter to convert a fetch Response to geotiff.js BaseResponse.
+ * @param {string} url The URL.
+ * @param {function(string, HeadersInit, AbortSignal): Promise<Response>} loader The loader function.
+ * @return {import('geotiff').BaseClient} The custom loader client.
  */
-class FetchResponseAdapter extends BaseResponse {
-  /**
-   * @param {Response} response The fetch response.
-   */
-  constructor(response) {
-    super();
-    this.response = response;
-  }
-
-  /**
-   * @override
-   */
-  get ok() {
-    return this.response.ok;
-  }
-
-  /**
-   * @override
-   */
-  get status() {
-    return this.response.status;
-  }
-
-  /**
-   * @override
-   * @param {string} name Header name.
-   * @return {string|null} Header value.
-   */
-  getHeader(name) {
-    return this.response.headers.get(name);
-  }
-
-  /**
-   * @override
-   * @return {Promise<ArrayBuffer>} Response data.
-   */
-  getData() {
-    return this.response.arrayBuffer();
-  }
-}
-
-/**
- * Adapter to use a custom loader function with geotiff.js.
- */
-class CustomLoaderClient extends BaseClient {
-  /**
-   * @param {string} url The URL.
-   * @param {function(string, HeadersInit, AbortSignal): Promise<Response>} loader The loader function.
-   */
-  constructor(url, loader) {
-    super(url);
-    this.loader = loader;
-  }
-
-  /**
-   * @override
-   * @param {Object} [options] Request options.
-   * @param {HeadersInit} [options.headers] Request headers.
-   * @param {AbortSignal} [options.signal] Abort signal.
-   * @return {Promise<BaseResponse>} Response.
-   */
-  async request({headers, signal} = {}) {
-    const response = await this.loader(this.url, headers || {}, signal);
-    return new FetchResponseAdapter(response);
-  }
-}
+const createCustomClient = (url, loader) => ({
+  url,
+  request: async (options) => {
+    const response = Object.assign(
+      await loader(url, options?.headers, options?.signal),
+      {
+        getHeader: (name) => response.headers.get(name),
+        getData: () => response.arrayBuffer(),
+      },
+    );
+    return response;
+  },
+});
 
 /**
  * @param {SourceInfo} source The GeoTIFF source.
@@ -323,13 +270,11 @@ function getImagesForSource(source, options) {
     request = tiffFromBlob(source.blob);
   } else if (source.loader) {
     if (source.overviews) {
-      return Promise.reject(
-        new Error(
-          'Source overviews are not supported when using a custom loader',
-        ),
+      throw new Error(
+        'Source overviews are not supported when using a custom loader',
       );
     }
-    const client = new CustomLoaderClient(source.url, source.loader);
+    const client = createCustomClient(source.url, source.loader);
     request = tiffFromCustomClient(client, options);
   } else if (source.overviews) {
     request = tiffFromUrls(source.url, source.overviews, options);
